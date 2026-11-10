@@ -34,6 +34,8 @@ export class Lighting implements GameModule {
     private readonly camera: THREE.PerspectiveCamera,
     private readonly defs: readonly LightDef[],
     poolSize: number,
+    /** Индекс активного этажа: лампы других этажей не попадают в пул. */
+    private readonly getActiveLevel: () => number = () => -1,
   ) {
     scene.add(new THREE.HemisphereLight(0x6f8077, 0x0e100f, CONFIG.lighting.hemisphereIntensity));
     for (let i = 0; i < poolSize; i += 1) {
@@ -79,11 +81,13 @@ export class Lighting implements GameModule {
       if (def.fixture) def.fixture.color.copy(tmpColor.setHex(def.color)).multiplyScalar(0.12 + 0.88 * rt.level);
     }
 
-    // Кандидаты: лампы в радиусе действия, ближайшие первыми
+    // Кандидаты: лампы активного этажа в радиусе действия, ближайшие первыми
     const cam = this.camera.position;
+    const activeLevel = this.getActiveLevel();
     this.candidates.length = 0;
     for (let i = 0; i < defs.length; i += 1) {
       const d = defs[i];
+      if (activeLevel >= 0 && d.level !== undefined && d.level !== activeLevel) continue;
       const dx = d.x - cam.x;
       const dy = d.y - cam.y;
       const dz = d.z - cam.z;

@@ -14,7 +14,7 @@ export class PlayerController implements GameModule {
     const frame = this.input.poll();
     const settings = this.getSettings();
     this.player.look(frame.lookX, frame.lookY, settings.sensitivity, settings.invertY);
-    this.player.move(dt, frame.moveForward, frame.moveRight, frame.run);
+    if (!this.player.transitioning) this.player.move(dt, frame.moveForward, frame.moveRight, frame.run);
   }
 
   dispose(): void {}

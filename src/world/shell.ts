@@ -30,12 +30,30 @@ const STYLE: Record<CellZone, Style> = {
   lab: { wall: 'wallTile', floor: 'floorTile' },
   storage: { wall: 'wallDark', floor: 'floorConcrete' },
   electrical: { wall: 'wallMetal', floor: 'floorMetal' },
+  office: { wall: 'wallOffice', floor: 'floorOffice' },
+  staff: { wall: 'wallStaff', floor: 'floorStaff' },
+  server: { wall: 'wallServer', floor: 'floorServer' },
+  medical: { wall: 'wallMed', floor: 'floorMed' },
+  isolation: { wall: 'wallMed', floor: 'floorConcrete' },
+  tech: { wall: 'wallTech', floor: 'floorMetal' },
+  airlock: { wall: 'wallTile', floor: 'floorMetal' },
   door: { wall: 'wallMetal', floor: 'floorMetal' },
+  // открытая территория: без потолка, земля/асфальт, по периметру — бетонная стена
+  exterior: { wall: 'wallExterior', floor: 'floorExterior' },
+  road: { wall: 'wallExterior', floor: 'floorAsphalt' },
+  parking: { wall: 'wallExterior', floor: 'floorAsphalt' },
 };
+
+/** Полы открытых зон: потолок над ними не строится. */
+const OUTDOOR_FLOORS = new Set(['floorExterior', 'floorAsphalt']);
 
 const TEXTURE_OF: Record<string, string> = {
   wallConcrete: 'concreteWall', wallDark: 'concreteDark', wallTile: 'tileWall', wallMetal: 'metalWall',
   floorConcrete: 'floorConcrete', floorTile: 'tileFloor', floorMetal: 'diamond', ceiling: 'ceiling',
+  // этап 3: те же текстуры, другой оттенок материала
+  wallOffice: 'concreteWall', wallStaff: 'concreteWall', wallServer: 'metalWall', wallMed: 'tileWall', wallTech: 'metalWall',
+  floorOffice: 'floorConcrete', floorStaff: 'floorConcrete', floorServer: 'tileFloor', floorMed: 'tileFloor',
+  wallExterior: 'concreteWall', floorExterior: 'floorExterior', floorAsphalt: 'floorAsphalt',
 };
 
 // Затемнение стены сверху вниз: у потолка и особенно у пола грязнее (дёшево имитирует затенение углов)
@@ -87,7 +105,7 @@ export function buildShell(grid: Grid, batch: StaticBatch): WallRun[] {
       const k = i < grid.width && grid.isFloor(i, j) ? STYLE[zoneOf(i, j)].floor : '';
       if (start >= 0 && k !== key) {
         horizontalQuad(batch, key, start, j, i, j + 1, 0, true);
-        horizontalQuad(batch, 'ceiling', start, j, i, j + 1, H, false);
+        if (!OUTDOOR_FLOORS.has(key)) horizontalQuad(batch, 'ceiling', start, j, i, j + 1, H, false);
         start = -1;
       }
       if (k && start < 0) {

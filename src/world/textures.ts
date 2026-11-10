@@ -301,9 +301,48 @@ function vent(rnd: Rng): THREE.CanvasTexture {
   return finish(c);
 }
 
+function dirt(rnd: Rng): THREE.CanvasTexture {
+  const [c, ctx] = canvas();
+  ctx.fillStyle = 'rgb(96,86,72)';
+  ctx.fillRect(0, 0, SIZE, SIZE);
+  blotches(ctx, rnd, 90, 4, 34, 0.18);
+  streaks(ctx, rnd, 8, 'rgba(40,30,20,0.25)');
+  for (let n = 0; n < 60; n += 1) {
+    const x = rnd() * SIZE;
+    const y = rnd() * SIZE;
+    const r = 1 + rnd() * 3;
+    ctx.fillStyle = `rgba(${(60 + rnd() * 40) | 0},${(50 + rnd() * 30) | 0},${(40 + rnd() * 20) | 0},0.5)`;
+    tiled((dx, dy) => {
+      ctx.beginPath();
+      ctx.arc(x + dx, y + dy, r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+  grain(ctx, rnd, 26);
+  return finish(c);
+}
+
+function asphalt(rnd: Rng): THREE.CanvasTexture {
+  const [c, ctx] = canvas();
+  ctx.fillStyle = 'rgb(54,56,58)';
+  ctx.fillRect(0, 0, SIZE, SIZE);
+  blotches(ctx, rnd, 40, 8, 50, 0.12);
+  streaks(ctx, rnd, 10, 'rgba(0,0,0,0.3)');
+  cracks(ctx, rnd, 5);
+  for (let n = 0; n < 6; n += 1) {
+    const x = rnd() * SIZE;
+    const y = rnd() * SIZE;
+    ctx.fillStyle = 'rgba(30,32,34,0.5)';
+    tiled((dx, dy) => ctx.fillRect(x + dx, y + dy, 20 + rnd() * 40, 14 + rnd() * 30));
+  }
+  grain(ctx, rnd, 24);
+  return finish(c);
+}
+
 export type TextureName =
   | 'concreteWall' | 'concreteDark' | 'floorConcrete' | 'tileWall' | 'tileFloor' | 'metalWall'
-  | 'diamond' | 'ceiling' | 'hazard' | 'wood' | 'cabinet' | 'vent';
+  | 'diamond' | 'ceiling' | 'hazard' | 'wood' | 'cabinet' | 'vent'
+  | 'floorExterior' | 'floorAsphalt';
 
 export function createTextures(seed: number): Record<TextureName, THREE.CanvasTexture> {
   const rnd = makeRng(seed);
@@ -320,6 +359,8 @@ export function createTextures(seed: number): Record<TextureName, THREE.CanvasTe
     wood: wood(rnd),
     cabinet: cabinet(rnd),
     vent: vent(rnd),
+    floorExterior: dirt(rnd),
+    floorAsphalt: asphalt(rnd),
   };
 }
 
@@ -327,6 +368,7 @@ export function createTextures(seed: number): Record<TextureName, THREE.CanvasTe
 export const TILE: Record<string, number> = {
   concreteWall: 2, concreteDark: 2, floorConcrete: 2, tileWall: 1.6, tileFloor: 1.6,
   metalWall: 1.5, diamond: 1.2, ceiling: 1.2,
+  floorExterior: 3, floorAsphalt: 3,
 };
 
 const lambert = (map: THREE.Texture | null, color: number, vertexColors = false) =>
@@ -341,9 +383,22 @@ export function createMaterials(t: Record<TextureName, THREE.CanvasTexture>): Re
     wallDark: lambert(t.concreteDark, 0xa9aca4, true),
     wallTile: lambert(t.tileWall, 0xcad4cd, true),
     wallMetal: lambert(t.metalWall, 0xa8b8b4, true),
+    // этап 3: оттенки существующих текстур — новые текстуры и память не нужны
+    wallOffice: lambert(t.concreteWall, 0xb9b39a, true),
+    wallStaff: lambert(t.concreteWall, 0xc2a888, true),
+    wallServer: lambert(t.metalWall, 0x8aa2b8, true),
+    wallMed: lambert(t.tileWall, 0xb2d6c4, true),
+    wallTech: lambert(t.metalWall, 0xb09a62, true),
+    floorOffice: lambert(t.floorConcrete, 0x5a6a66),
+    floorStaff: lambert(t.floorConcrete, 0x8a6e54),
+    floorServer: lambert(t.tileFloor, 0x8a9fb4),
+    floorMed: lambert(t.tileFloor, 0xa4cbb4),
     floorConcrete: lambert(t.floorConcrete, 0xb4b4ae),
     floorTile: lambert(t.tileFloor, 0xb8beb8),
     floorMetal: lambert(t.diamond, 0xb0b8b8),
+    floorExterior: lambert(t.floorExterior, 0x9a8a76),
+    floorAsphalt: lambert(t.floorAsphalt, 0x7a7c7e),
+    wallExterior: lambert(t.concreteWall, 0xa8a89e, true),
     ceiling: lambert(t.ceiling, 0xa0a09a),
     // детали
     concrete: lambert(t.concreteWall, 0xa8a8a0),

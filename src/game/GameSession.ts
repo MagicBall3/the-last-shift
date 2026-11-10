@@ -12,6 +12,7 @@ import { Lighting } from '../lighting/Lighting';
 import { Player } from '../player/Player';
 import { PlayerController } from '../player/PlayerController';
 import { World } from '../world/World';
+import { LevelTransitions } from '../world/levels/LevelTransitions';
 
 export interface SessionOptions {
   container: HTMLElement;
@@ -62,6 +63,7 @@ export class GameSession {
     const getSettings = (): Settings => this.settings;
 
     this.engine.addModule(new PlayerController(player, this.input, getSettings));
+    this.engine.addModule(new LevelTransitions(world.levels, player));
     this.engine.addModule(new FirstPersonCamera(this.engine.camera, player, getSettings));
     this.engine.addModule(
       new InteractionSystem(this.engine.camera, world.interactables, this.input, options.events),
@@ -69,7 +71,13 @@ export class GameSession {
     this.engine.addModule(world);
     this.engine.addModule(new Flashlight(this.engine.camera, this.input));
     this.engine.addModule(
-      new Lighting(this.engine.scene, this.engine.camera, world.lights, CONFIG.lighting.pool[options.settings.quality]),
+      new Lighting(
+        this.engine.scene,
+        this.engine.camera,
+        world.lights,
+        CONFIG.lighting.pool[options.settings.quality],
+        () => world.activeLevel,
+      ),
     );
 
     this.resizeObserver = new ResizeObserver(() => this.handleResize());

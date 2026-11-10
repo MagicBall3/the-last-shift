@@ -2,7 +2,7 @@ import { LOCKED_DOORS, ZONES, type Rect, type ZoneId } from './layout';
 import type { BuildContext } from './context';
 import { faceFrame } from './structures';
 
-const INDUSTRIAL: readonly string[] = ['corridor', 'service', 'storage', 'electrical'];
+const INDUSTRIAL: readonly string[] = ['corridor', 'service', 'storage', 'electrical', 'tech', 'airlock', 'server'];
 
 /** Расстановка света: светлые участки, аварийные лампы и участки почти полной темноты. */
 function placeLights(c: BuildContext): void {
@@ -42,6 +42,47 @@ function placeLights(c: BuildContext): void {
   c.lamp({ x: 44, z: 25, kind: 'em', color: 0xff2a1a, intensity: 5, distance: 7, mode: 'pulse', y: 2.6 });
   c.lamp({ x: 4, z: 29.5, intensity: 14, distance: 9, mode: 'broken', alongZ: true });
   c.lamp({ x: 4, z: 33.5, kind: 'em', color: 0xff2a1a, intensity: 5, distance: 7, mode: 'pulse', y: 2.6 });
+}
+
+/** Свет новых помещений (этап 3). Оттенок зоны: серверная — холодный синий, медблок — бледно-зелёный, техзона — янтарный. */
+function placeLightsStage3(c: BuildContext): void {
+  // Северный коридор и галерея
+  c.lamp({ x: 4, z: 10, intensity: 12, distance: 9, mode: 'fluoro', alongZ: true });
+  c.deadLamp(4, 12.5, true);
+  c.lamp({ x: 6, z: 6, kind: 'em', color: 0xff2a1a, intensity: 5, distance: 7, mode: 'pulse', y: 2.6 });
+  c.lamp({ x: 21, z: 6, intensity: 14, distance: 10, mode: 'fluoro' });
+  c.deadLamp(25, 6);
+  c.lamp({ x: 28.5, z: 6, kind: 'em', color: 0xff2a1a, intensity: 5, distance: 7, mode: 'pulse', y: 2.6 });
+  // Комната персонала, кладовая
+  c.lamp({ x: 12, z: 6, color: 0xffe2b0, intensity: 15, distance: 9 });
+  c.lamp({ x: 14.2, z: 7.4, y: 1.0, kind: 'none', color: 0xffc070, intensity: 4, distance: 4, mode: 'broken' });
+  c.deadLamp(7, 10, true);
+  // Кабинеты
+  c.lamp({ x: 20, z: 2.5, intensity: 10, distance: 6, mode: 'fluoro' });
+  c.lamp({ x: 25.9, z: 1.5, y: 1.25, kind: 'none', color: 0xffc070, intensity: 6, distance: 5 });
+  c.lamp({ x: 35, z: 15.5, intensity: 10, distance: 7, mode: 'fluoro' });
+  c.deadLamp(40, 15.5);
+  // Медблок и изолятор
+  c.lamp({ x: 35, z: 6.5, color: 0xd8f0e4, intensity: 18, distance: 10 });
+  c.lamp({ x: 33.2, z: 8.4, color: 0xd8f0e4, intensity: 10, distance: 7, mode: 'broken' });
+  c.lamp({ x: 35, z: 4.3, y: 2.1, kind: 'none', color: 0x4cff9a, intensity: 6, distance: 5, mode: 'pulse' });
+  c.lamp({ x: 41, z: 6.8, kind: 'em', color: 0xff2a1a, intensity: 6, distance: 8, mode: 'pulse', y: 2.6 });
+  c.deadLamp(40, 3.8);
+  c.deadLamp(43, 3.8);
+  // Серверная и техзона
+  c.lamp({ x: 33.5, z: 24.5, color: 0x7fb6ff, intensity: 16, distance: 9, mode: 'fluoro' });
+  c.lamp({ x: 39.5, z: 24.0, color: 0xffb060, intensity: 14, distance: 9, mode: 'broken' });
+  c.lamp({ x: 39.5, z: 26.8, kind: 'em', color: 0xff2a1a, intensity: 6, distance: 7, mode: 'pulse', y: 2.6 });
+  // Юг: шлюз, лаборатория Б, камера, тупик
+  c.lamp({ x: 30.5, z: 33, color: 0xbfd4ff, intensity: 12, distance: 6, mode: 'fluoro' });
+  c.lamp({ x: 27, z: 37, intensity: 18, distance: 11, mode: 'fluoro' });
+  c.lamp({ x: 32, z: 40.5, intensity: 16, distance: 10, mode: 'broken' });
+  c.deadLamp(29.5, 40.5);
+  c.lamp({ x: 33.2, z: 41.4, y: 1.8, kind: 'none', color: 0x4cff9a, intensity: 10, distance: 7, mode: 'pulse' });
+  c.lamp({ x: 38.5, z: 34.5, intensity: 14, distance: 10, mode: 'broken' });
+  c.lamp({ x: 44, z: 34, kind: 'em', color: 0xff2a1a, intensity: 5, distance: 7, mode: 'pulse', y: 2.6 });
+  c.lamp({ x: 41, z: 41, kind: 'em', color: 0xff2a1a, intensity: 6, distance: 8, mode: 'pulse', y: 2.6 });
+  c.deadLamp(43.5, 41.5);
 }
 
 /** Балки, трубы и кабельные лотки под потолком каждого помещения. */
@@ -109,7 +150,7 @@ function wallDetails(c: BuildContext): void {
     locked.some((l) => Math.abs(x - l.x) < l.reach && Math.abs(z - l.z) < l.reach);
 
   for (const run of c.runs) {
-    if (run.zone === 'door') continue;
+    if (run.zone === 'door' || run.zone === 'exterior' || run.zone === 'road' || run.zone === 'parking') continue;
     const len = Math.hypot(run.bx - run.ax, run.bz - run.az);
     if (len < 1.5) continue;
     const ex = (run.bx - run.ax) / len;
@@ -270,9 +311,189 @@ function corridorDebris(c: BuildContext): void {
   c.solid('metal', 0.9, 0.9, 0.6, 4.5, 28.0);
 }
 
+/** Стол с монитором и стулом; коллизия — у стола и стула. */
+function desk(c: BuildContext, x: number, z: number, chairZ: number, w = 1.4, d = 0.7): void {
+  c.solid('crate', w, 0.75, d, x, z, 0, 1);
+  c.detail('screenOff', 0.36, 0.28, 0.05, x - w * 0.2, 0.9, z - d * 0.25);
+  c.detail('paper', 0.3, 0.02, 0.4, x + w * 0.2, 0.76, z + 0.05, { rot: [0, c.rnd() * 3, 0] });
+  c.solid('fabric', 0.45, 0.5, 0.45, x, chairZ);
+}
+
+function offices(c: BuildContext): void {
+  // Кабинет 1 (x 33–36, z 14–16): двери в главный и северный сервисный коридоры
+  desk(c, 34.1, 14.55, 15.25);
+  c.proxy(1.4, 1.0, 0.7, 34.1, 0.5, 14.55, 'Осмотреть стол', 'График дежурств. Последняя строка зачёркнута, поверх написано: «Не выходить».');
+  c.solid('cabinet', 0.4, 1.8, 1.0, 33.25, 15.9);
+  // Архив (x 38–41, z 14–16)
+  for (const x of [38.6, 39.7, 40.8]) c.solid('cabinet', 1.0, 2.0, 0.5, x, 14.3);
+  c.solid('crate', 0.7, 0.5, 0.7, 41.55, 16.5, 0, 0.8);
+  c.detail('paper', 0.9, 0.02, 0.6, 40.4, 0.006, 15.7, { rot: [0, 0.4, 0] });
+  c.proxy(3.4, 2.0, 0.6, 39.7, 1.0, 14.3, 'Осмотреть картотеку', 'Ящики выдвинуты. Ярлыки на папках закрашены чёрным маркером.');
+  // Кабинеты 2 и 3 (северная галерея)
+  desk(c, 20.7, 1.6, 2.4);
+  c.proxy(1.4, 1.0, 0.7, 20.7, 0.5, 1.6, 'Осмотреть стол', 'Чашка с засохшим кофе. Рядом бейдж: имя стёрто.');
+  desk(c, 25.7, 1.6, 2.4);
+  c.proxy(1.4, 1.0, 0.7, 25.7, 0.5, 1.6, 'Осмотреть стол', 'Настольная лампа ещё горит. Кто-то оставил её включённой.');
+  c.solid('cabinet', 0.4, 1.8, 0.9, 23.35, 2.0);
+}
+
+function staff(c: BuildContext): void {
+  // Комната персонала (x 9–15, z 4–8)
+  c.solid('fabric', 2.0, 0.45, 0.8, 11.5, 4.5);
+  c.solid('crate', 1.8, 0.75, 0.9, 12.6, 6.5, 0, 1);
+  c.detail('paper', 0.3, 0.02, 0.3, 12.2, 0.76, 6.4, { rot: [0, 0.6, 0] });
+  c.detail('screenOff', 0.3, 0.2, 0.05, 13.0, 0.85, 6.9);
+  c.proxy(1.8, 1.0, 0.9, 12.6, 0.5, 6.5, 'Осмотреть стол', 'Остывший чай в трёх чашках. Смена закончилась давно.');
+  for (let k = 0; k < 3; k += 1) c.solid('cabinet', 0.5, 1.9, 0.55, 14.7, 6.5 + k * 0.6, 0, 1);
+  c.proxy(0.6, 1.9, 1.8, 14.7, 0.95, 7.1, 'Осмотреть шкафчик', 'Внутри форма с табличкой «Дежурный». Размер на ребёнка.');
+  c.solid('metal', 2.0, 0.9, 0.6, 12.6, 8.65);
+  c.detail('screenOn', 0.3, 0.2, 0.04, 12.0, 1.15, 8.9);
+  c.detail('ledGreen', 0.05, 0.05, 0.02, 12.9, 1.0, 8.9);
+  // Кладовая (x 6–7, z 9–11) — тупик
+  c.solid('metal', 0.4, 1.8, 1.4, 7.75, 10.5);
+  c.batch.cyl('pipeRust', 0.18, 0.4, 'y', 6.5, 0.2, 11.6, 8);
+  c.block(0.4, 0.4, 6.5, 11.6);
+  c.proxy(0.6, 1.8, 1.4, 7.75, 0.9, 10.5, 'Осмотреть стеллаж', 'Швабры, химия, жёлтые таблички «Мокрый пол». Одна табличка лежит лицом вниз.');
+}
+
+function server(c: BuildContext): void {
+  // Серверная (x 31–36, z 22–27): ряд у западной стены, короткий ряд у восточной
+  const rackAt = (x: number, z: number, faceX: number): void => {
+    c.solid('cabinet', 0.9, 2.2, 0.9, x, z);
+    c.detail(((x + z) * 7) % 3 < 1 ? 'ledRed' : 'ledGreen', 0.06, 0.06, 0.02, faceX, 1.9, z - 0.2);
+    c.detail('ledGreen', 0.06, 0.06, 0.02, faceX, 1.9, z + 0.2);
+    c.detail('ledGreen', 0.06, 0.06, 0.02, faceX, 1.4, z);
+  };
+  for (const z of [22.9, 24.0, 25.1, 26.2]) rackAt(32.0, z, 32.47);
+  for (const z of [25.1, 26.2]) rackAt(35.0, z, 34.53);
+  c.proxy(0.9, 2.2, 4.2, 32.0, 1.1, 24.55, 'Осмотреть серверы', 'Индикаторы мигают. Что-то до сих пор пишется на диск.');
+  c.solid('metal', 1.0, 0.9, 0.6, 36.1, 22.6);
+  c.detail('screenOn', 0.5, 0.3, 0.04, 36.1, 1.2, 22.5);
+  c.detail('hazard', 0.1, 0.006, 3.0, 33.3, 0.005, 24.5, { tile: 0.6 });
+  for (const z of [23.2, 25.6]) c.detail('cable', 2.0, 0.05, 0.07, 33.4, 0.03, z, { tile: 1 });
+}
+
+function tech(c: BuildContext): void {
+  // Закрытая техническая зона (x 38–41, z 22–27): трансформатор, генератор, силовая колонна
+  c.solid('metal', 1.2, 1.7, 1.2, 40.3, 23.0);
+  for (const dz of [-0.35, 0.35]) c.batch.cyl('concrete', 0.1, 0.4, 'y', 40.3, 1.9, 23.0 + dz);
+  c.detail('hazard', 1.3, 0.006, 0.2, 40.3, 0.005, 23.8, { tile: 0.6 });
+  c.solid('concrete', 0.6, c.H, 0.6, 38.7, 26.6);
+  c.detail('hazard', 0.62, 0.3, 0.62, 38.7, 0.5, 26.6, { tile: 0.3 });
+  c.solid('metal', 1.0, 1.0, 1.3, 40.5, 25.6);
+  c.batch.cyl('pipe', 0.12, 3.0, 'y', 41.7, 1.6, 24.4);
+  c.batch.cyl('pipe', 0.12, 3.0, 'y', 41.7, 1.6, 26.0);
+  c.signs.add(c.batch, 'ВЫСОКОЕ НАПРЯЖЕНИЕ', 41.97, 2.45, 24.5, -1, 0, 1.0, 0.25);
+  c.proxy(1.2, 1.7, 1.2, 40.3, 0.85, 23.0, 'Осмотреть трансформатор', 'Корпус тёплый на ощупь. Хотя питание отключено.');
+  c.proxy(1.0, 1.0, 1.3, 40.5, 0.5, 25.6, 'Осмотреть генератор', 'Топливный бак пуст. На счётчике моточасов — сплошные девятки.');
+}
+
+function airlock(c: BuildContext): void {
+  // Шлюз 2: дезактивационный тамбур между сервисным коридором и лабораторией Б
+  c.detail('hazard', 2.8, 0.006, 0.2, 30.5, 0.005, 32.5, { tile: 0.6 });
+  c.detail('hazard', 2.8, 0.006, 0.2, 30.5, 0.005, 33.5, { tile: 0.6 });
+  for (const x of [29.2, 31.8]) c.batch.cyl('pipe', 0.05, c.H, 'y', x, c.H / 2, 32.2);
+  c.detail('ledRed', 0.07, 0.07, 0.02, 31.96, 1.6, 33.6);
+  c.signs.add(c.batch, 'КАРАНТИН', 31.97, 2.3, 33.0, -1, 0, 0.9, 0.22);
+}
+
+function labB(c: BuildContext): void {
+  // Лаборатория Б (x 24–34, z 35–43): два рабочих острова, шкафы у стены, ряд колб и большой резервуар — ориентир
+  c.solid('metal', 3.4, 0.9, 1.0, 27.5, 38.6);
+  c.solid('metal', 3.0, 0.9, 1.0, 32.0, 38.6);
+  for (const [x, z] of [[26.8, 38.5], [28.4, 38.7], [31.4, 38.6], [32.8, 38.5]] as const) {
+    c.batch.cyl('tank', 0.07, 0.28, 'y', x, 1.04, z);
+  }
+  c.detail('screenOff', 0.4, 0.3, 0.05, 27.0, 1.1, 38.3);
+  c.detail('paper', 0.3, 0.02, 0.4, 32.4, 0.91, 38.8, { rot: [0, 0.8, 0] });
+  for (let k = 0; k < 4; k += 1) c.solid('cabinet', 0.6, 2.0, 1.0, 24.35, 36.6 + k * 1.15);
+  for (const x of [25.6, 27.2, 28.8]) {
+    c.batch.cyl('tank', 0.45, 2.0, 'y', x, 1.2, 42.4, 10);
+    c.batch.cyl('metal', 0.5, 0.15, 'y', x, 0.08, 42.4, 10);
+    c.batch.cyl('metal', 0.5, 0.15, 'y', x, 2.3, 42.4, 10);
+    c.block(0.9, 0.9, x, 42.4);
+  }
+  c.decal('stain', 1.6, 1.2, 28.4, 41.2, 0.4);
+  // Центральный ориентир: огромный резервуар с зелёным свечением
+  c.batch.cyl('tank', 0.9, 2.8, 'y', 33.0, 1.5, 41.6, 14);
+  c.batch.cyl('metal', 1.0, 0.2, 'y', 33.0, 0.1, 41.6, 14);
+  c.batch.cyl('metal', 1.0, 0.2, 'y', 33.0, 2.9, 41.6, 14);
+  c.block(1.9, 1.9, 33.0, 41.6);
+  c.proxy(2.0, 2.8, 2.0, 33.0, 1.4, 41.6, 'Осмотреть резервуар', 'Стекло изнутри в трещинах. Что бы там ни находилось, оно вышло само.');
+  c.proxy(3.6, 1.0, 1.0, 27.5, 0.5, 38.6, 'Осмотреть стол', 'Пробирки в штативах, подписи: «Образец 7», «Образец 7-Б», «Образец 7-Б (не открывать)».');
+}
+
+function chamber(c: BuildContext): void {
+  // Испытательная камера (x 36–41, z 32–37): пустой зал с креслом в центре — тупик для будущих событий
+  c.detail('hazard', 3.0, 0.006, 3.0, 38.5, 0.005, 34.5, { tile: 0.6 });
+  c.solid('metal', 0.6, 0.9, 0.6, 38.5, 34.5);
+  c.detail('metal', 0.5, 0.06, 0.5, 38.5, 1.0, 34.5, { tile: 1 });
+  c.detail('cable', 0.04, 0.9, 0.04, 38.5, 2.7, 34.0, { tile: 1 });
+  c.proxy(0.8, 1.2, 0.8, 38.5, 0.6, 34.5, 'Осмотреть кресло', 'Кресло с ремнями. Подлокотники вытерты до металла, на спинке — царапины.');
+  c.signs.add(c.batch, 'КАРАНТИН', 41.97, 2.3, 34.5, -1, 0, 0.9, 0.22);
+}
+
+function ventRoom(c: BuildContext): void {
+  // Вентиляционная (x 38–44, z 39–43): тупик, два вытяжных короба и вентилятор
+  c.solid('metal', 1.2, c.H, 1.2, 40.0, 41.6);
+  c.solid('metal', 1.2, c.H, 1.2, 42.2, 41.6);
+  c.detail('vent', 0.9, 0.9, 0.06, 40.0, 1.6, 40.97);
+  c.detail('vent', 0.9, 0.9, 0.06, 42.2, 1.6, 40.97);
+  c.batch.cyl('pipe', 0.22, 1.8, 'x', 41.1, 2.8, 41.6);
+  c.detail('hazard', 0.1, 0.006, 3.5, 38.6, 0.005, 41.5, { tile: 0.6 });
+  c.proxy(1.2, 2.4, 1.2, 40.0, 1.2, 41.6, 'Осмотреть короб', 'Изнутри слышно, как что-то медленно ползёт вверх.');
+}
+
+function lobbyControl(c: BuildContext): void {
+  // Контрольная зона вестибюля: две будки поста допуска и перемычка над входом в главный коридор
+  c.solid('metal', 0.7, 1.1, 1.4, 7.6, 17.4);
+  c.solid('metal', 0.7, 1.1, 1.4, 7.6, 21.6);
+  c.detail('screenOff', 0.4, 0.3, 0.05, 7.6, 1.35, 16.8);
+  c.detail('screenOn', 0.4, 0.3, 0.05, 7.6, 1.35, 21.0);
+  c.detail('hazard', 0.1, 0.006, 4.0, 8.6, 0.005, 19.5, { tile: 0.6 });
+  c.detail('concrete', 0.3, 0.5, 3.0, 8.9, 2.95, 19.5, { tile: 1 });
+  c.signs.add(c.batch, 'КОНТРОЛЬ ДОСТУПА', 8.74, 2.6, 19.5, -1, 0, 1.4, 0.3);
+  c.proxy(0.7, 1.1, 1.4, 7.6, 0.55, 21.6, 'Осмотреть пост', 'Журнал допуска. Последний записавшийся вышел за час до отключения света. Выхода нет.');
+  // Колонны главного коридора — ориентир на полпути
+  c.solid('concrete', 0.5, c.H, 0.5, 22.0, 18.35);
+  c.solid('concrete', 0.5, c.H, 0.5, 22.0, 20.65);
+  c.detail('hazard', 0.52, 0.3, 0.52, 22.0, 0.4, 18.35, { tile: 0.3 });
+  c.detail('hazard', 0.52, 0.3, 0.52, 22.0, 0.4, 20.65, { tile: 0.3 });
+}
+
+function medical(c: BuildContext): void {
+  // Медблок (x 32–37, z 4–9): две койки, ширма, процедурный стол, шкаф и мойка
+  for (const x of [34.3, 36.2]) {
+    c.solid('metal', 1.0, 0.5, 2.0, x, 5.1);
+    c.detail('fabric', 0.9, 0.12, 1.9, x, 0.56, 5.1, { tile: 1 });
+  }
+  c.solid('fabric', 0.05, 1.7, 1.4, 35.25, 5.0, 0, 1);
+  c.solid('metal', 1.8, 0.8, 0.8, 34.6, 7.4);
+  c.solid('cabinet', 1.2, 1.8, 0.5, 33.2, 8.7);
+  c.solid('metal', 1.4, 0.9, 0.6, 35.8, 8.7);
+  c.batch.cyl('pipe', 0.12, 0.1, 'y', 35.8, 0.95, 8.7);
+  c.detail('ledGreen', 0.5, 0.12, 0.03, 35.0, 2.1, 4.03);
+  c.detail('ledGreen', 0.12, 0.5, 0.03, 35.0, 2.1, 4.03);
+  c.proxy(2.4, 0.7, 2.0, 35.25, 0.35, 5.1, 'Осмотреть койки', 'Ремни расстёгнуты. Простыня смята, словно кто-то только что встал.');
+  c.proxy(1.2, 1.8, 0.5, 33.2, 0.9, 8.7, 'Осмотреть шкаф', 'Ампулы без этикеток. Ровно половина разбита изнутри.');
+}
+
+function isolation(c: BuildContext): void {
+  // Изолятор: коридор (x 39–43, z 6–7) и две палаты (x 39–40 и 42–43, z 3–4)
+  c.solid('metal', 0.8, 0.45, 1.6, 40.4, 3.9);
+  c.solid('metal', 0.8, 0.45, 1.6, 43.4, 3.9);
+  c.proxy(0.9, 0.9, 1.7, 40.4, 0.45, 3.9, 'Осмотреть койку', 'Ремни порваны изнутри.');
+  c.proxy(0.9, 0.9, 1.7, 43.4, 0.45, 3.9, 'Осмотреть койку', 'Матрас вспорот. Набивка пропитана чем-то тёмным.');
+  c.detail('hazard', 4.6, 0.006, 0.2, 41.0, 0.005, 6.5, { tile: 0.6 });
+  c.signs.add(c.batch, 'КАРАНТИН', 41.5, 2.3, 6.03, 0, 1, 0.9, 0.22);
+  c.detail('paper', 0.5, 0.02, 0.5, 42.0, 0.006, 4.4, { rot: [0, 0.6, 0] });
+  c.proxy(0.2, 2.4, 1.8, 39.1, 1.2, 3.9, 'Осмотреть стену', 'Стена исцарапана до самого потолка. Царапины идут изнутри.');
+}
+
 /** Вся обстановка здания. */
 export function buildProps(c: BuildContext): void {
   placeLights(c);
+  placeLightsStage3(c);
   for (const zone of ZONES) {
     for (const r of zone.rects) {
       ceilingWork(c, zone.id, r);
@@ -286,4 +507,15 @@ export function buildProps(c: BuildContext): void {
   storage(c);
   electrical(c);
   corridorDebris(c);
+  lobbyControl(c);
+  offices(c);
+  staff(c);
+  server(c);
+  tech(c);
+  airlock(c);
+  labB(c);
+  chamber(c);
+  ventRoom(c);
+  medical(c);
+  isolation(c);
 }

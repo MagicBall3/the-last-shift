@@ -15,6 +15,8 @@ export interface LightDef {
   intensity: number;
   distance: number;
   mode: LightMode;
+  /** Индекс этажа, к которому относится лампа (заполняется при сборке уровней). */
+  level?: number;
   /** Материал видимого плафона, если он должен мерцать вместе с лампой */
   fixture?: THREE.MeshBasicMaterial;
 }

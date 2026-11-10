@@ -10,6 +10,8 @@ export class Player {
   pitch = 0;
   /** Текущая горизонтальная скорость, м/с (для покачивания камеры и будущих шагов). */
   speed = 0;
+  /** Идёт вертикальный переход (лестница/лифт): движение отключается, позицию ведёт LevelTransitions. */
+  transitioning = false;
 
   private vx = 0;
   private vz = 0;

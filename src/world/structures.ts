@@ -1,4 +1,4 @@
-import { DOORS, LOCKED_DOORS, type Face, type LockedDoorDef } from './layout';
+import { DOORS, LOCKED_DOORS, type DoorDef, type Face, type LockedDoorDef } from './layout';
 import type { BuildContext } from './context';
 
 const FACE: Record<Face, { nx: number; nz: number }> = {
@@ -20,8 +20,8 @@ export function faceFrame(d: LockedDoorDef): { px: number; pz: number; nx: numbe
 }
 
 /** Рамы, перемычки, пороги и указатели у открывающихся дверей. */
-export function buildDoorFrames(c: BuildContext): void {
-  for (const d of DOORS) {
+export function buildDoorFrames(c: BuildContext, defs: readonly DoorDef[] = DOORS): void {
+  for (const d of defs) {
     const cx = d.x + 0.5;
     const cz = d.z + 0.5;
     if (d.axis === 'z') {
@@ -45,8 +45,8 @@ export function buildDoorFrames(c: BuildContext): void {
 }
 
 /** Запертые двери на стенах: закрытые помещения. Интерьеров за ними пока нет. */
-export function buildLockedDoors(c: BuildContext): void {
-  for (const d of LOCKED_DOORS) {
+export function buildLockedDoors(c: BuildContext, defs: readonly LockedDoorDef[] = LOCKED_DOORS): void {
+  for (const d of defs) {
     const { px, pz, nx, nz } = faceFrame(d);
     const kind = d.kind ?? 'door';
     if (kind === 'door') {

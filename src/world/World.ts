@@ -1,78 +1,81 @@
 import * as THREE from 'three';
-import { CONFIG } from '../core/config';
 import type { GameModule } from '../core/types';
 import type { Interactable } from '../interactions/Interactable';
 import type { LightDef } from '../lighting/LightDef';
-import { BuildContext } from './context';
-import { Door } from './Door';
-import { Grid } from './grid';
-import { DOORS, EXTRA_LABELS, LOCKED_DOORS, SPAWN } from './layout';
-import { buildProps } from './props';
-import { buildShell } from './shell';
-import { SignAtlas } from './signs';
-import { StaticBatch } from './StaticBatch';
-import { buildDoorFrames, buildLockedDoors } from './structures';
-import { LevelCollision } from './Collision';
-import { createMaterials, createTextures, makeRng } from './textures';
+import { Level } from './levels/Level';
+import { MultiLevelCollision } from './levels/MultiLevelCollision';
+import { buildLevels, SPAWN_POINT } from './levels/buildLevels';
+import { levelIndexAt } from './levels/levelIndex';
 
 /**
- * Подземный исследовательский комплекс. Единое здание: пол, потолок и стены строятся из одной сетки,
- * детали склеиваются по материалам (несколько десятков вызовов отрисовки на всё здание).
+ * Комплекс NADIR: несколько уровней (наземный этаж с внешней территорией, этажи 2–4,
+ * подземные уровни) в одной сцене. Коллизии — многоуровневые: активный этаж
+ * выбирается по высоте игрока.
+ *
+ * Оптимизация: видны только активный этаж и соседние, а лампы каждого этажа
+ * помечены своим индексом — пул освещения берёт только лампы активного этажа.
  */
 export class World implements GameModule {
   readonly group = new THREE.Group();
   readonly interactables: Interactable[] = [];
+  /** Все лампы комплекса; у каждой заполнено поле level. */
   readonly lights: LightDef[] = [];
-  readonly collision: LevelCollision;
-  readonly spawn = new THREE.Vector3(SPAWN.x, 0, SPAWN.z);
-  readonly spawnYaw = SPAWN.yaw;
+  readonly collision: MultiLevelCollision;
+  readonly levels: Level[];
+  readonly spawn = new THREE.Vector3(SPAWN_POINT.x, 0, SPAWN_POINT.z);
+  readonly spawnYaw = SPAWN_POINT.yaw;
 
-  private readonly doors: Door[] = [];
-  private playerPosition = new THREE.Vector3(SPAWN.x, 0, SPAWN.z);
+  private playerRef: THREE.Vector3 | null = null;
+  private active = 0;
 
   constructor() {
-    const grid = new Grid();
-    const materials = createMaterials(createTextures(CONFIG.world.seed));
-    const labels = [
-      ...DOORS.flatMap((d) => d.labels),
-      ...LOCKED_DOORS.map((d) => d.label),
-      ...EXTRA_LABELS,
-    ];
-    const signs = new SignAtlas(labels);
-    materials.sign = new THREE.MeshBasicMaterial({ map: signs.texture, color: 0xc4c4bc });
-
-    const batch = new StaticBatch();
-    const boxes: THREE.Box3[] = [];
-    const runs = buildShell(grid, batch);
-    const rnd = makeRng(CONFIG.world.seed + 1);
-    const ctx = new BuildContext(grid, batch, rnd, boxes, this.lights, signs, this.interactables, this.group, runs);
-
-    buildDoorFrames(ctx);
-    buildLockedDoors(ctx);
-    buildProps(ctx);
-
-    for (const def of DOORS) {
-      const collider = new THREE.Box3();
-      boxes.push(collider);
-      const door = new Door(def, materials.doorMetal, collider, () => this.playerPosition);
-      this.doors.push(door);
-      this.group.add(door.pivot);
-      this.interactables.push(door);
+    this.levels = buildLevels();
+    for (let i = 0; i < this.levels.length; i += 1) {
+      const lvl = this.levels[i];
+      this.group.add(lvl.group);
+      this.interactables.push(...lvl.interactables);
+      for (const light of lvl.lights) {
+        light.level = i;
+        this.lights.push(light);
+      }
     }
-
-    batch.build(materials, this.group);
-    this.collision = new LevelCollision(grid, boxes);
-    this.group.updateMatrixWorld(true);
+    this.collision = new MultiLevelCollision(this.levels, () => (this.playerRef ? this.playerRef.y : 0));
+    this.applyVisibility(0);
   }
 
-  /** Двери должны знать, где игрок (чтобы не закрыться на нём и открыться от него). */
+  /** Индекс этажа, на котором сейчас игрок. */
+  get activeLevel(): number {
+    return this.active;
+  }
+
+  /** Двери всех уровней должны знать, где игрок. */
   attachPlayer(position: THREE.Vector3): void {
-    this.playerPosition = position;
+    this.playerRef = position;
+    for (const lvl of this.levels) lvl.attachPlayer(position);
+  }
+
+  /**
+   * Видимость: держим в сцене активный этаж и соседние (чтобы лестницы
+   * не «пропадали» на границе перехода), остальные скрываем.
+   */
+  private applyVisibility(index: number): void {
+    for (let i = 0; i < this.levels.length; i += 1) {
+      this.levels[i].group.visible = Math.abs(i - index) <= 1;
+    }
   }
 
   update(dt: number): void {
-    for (const door of this.doors) door.update(dt);
+    if (this.playerRef) {
+      const idx = levelIndexAt(this.levels, this.playerRef.y);
+      if (idx !== this.active) {
+        this.active = idx;
+        this.applyVisibility(idx);
+      }
+    }
+    for (const lvl of this.levels) lvl.update(dt);
   }
 
-  dispose(): void {}
+  dispose(): void {
+    for (const lvl of this.levels) lvl.dispose();
+  }
 }

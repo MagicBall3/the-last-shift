@@ -15,10 +15,10 @@ export const QUALITY_PRESETS: Record<QualityLevel, QualityPreset> = {
 export const CONFIG = {
   /** Максимальный шаг симуляции, сек. Защищает от «прыжков» после паузы/лага. */
   maxDelta: 0.05,
-  camera: { fov: 72, near: 0.05, far: 45 },
+  camera: { fov: 72, near: 0.05, far: 120 },
   world: {
     fogColor: 0x040605,
-    fogDensity: 0.075,
+    fogDensity: 0.02,
     /** Высота потолка, м */
     height: 3.2,
     /** Зерно генератора случайных деталей: одно и то же здание при каждом запуске */
