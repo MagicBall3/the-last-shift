@@ -16,6 +16,8 @@ export interface GameEvents {
   onPrompt(text: string | null): void;
   onMessage(text: string): void;
   onLockLost(): void;
+  /** Затемнение экрана 0..1 (переход по лестнице сквозь перекрытие). */
+  onFade?(value: number): void;
 }
 
 /** Запрос столкновений: круг игрока (x, z, радиус) пересекает стену или предмет? */

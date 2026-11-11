@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CONFIG } from '../core/config';
 import type { GameModule } from '../core/types';
 import type { Interactable } from '../interactions/Interactable';
 import type { LightDef } from '../lighting/LightDef';
@@ -55,12 +56,16 @@ export class World implements GameModule {
   }
 
   /**
-   * Видимость: держим в сцене активный этаж и соседние (чтобы лестницы
+   * Видимость: держим в сцене активный этаж и соседние по высоте (чтобы лестницы
    * не «пропадали» на границе перехода), остальные скрываем.
+   * Соседство считается по Y, а не по индексу: у подземных уровней индексы идут
+   * после наземных, и «сосед по индексу» для −1 — это этаж 4 (+9.6 м над головой).
    */
   private applyVisibility(index: number): void {
+    const { height } = CONFIG.world;
+    const baseY = this.levels[index]?.baseY ?? 0;
     for (let i = 0; i < this.levels.length; i += 1) {
-      this.levels[i].group.visible = Math.abs(i - index) <= 1;
+      this.levels[i].group.visible = Math.abs(this.levels[i].baseY - baseY) <= height * 1.5;
     }
   }
 

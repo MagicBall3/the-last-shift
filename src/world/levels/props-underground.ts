@@ -39,7 +39,8 @@ export function buildLabProps(c: BuildContext, labs: Rect[], servers: Rect[]): v
   }
 
   for (const r of servers) {
-    for (let z = r.z + 1; z < r.z + r.d - 0.5; z += 2) rack(c, r.x + r.w / 2, z);
+    // 2 м отступ от стен: дверь стоит по центру короткой стены
+    for (let z = r.z + 2; z < r.z + r.d - 1.5; z += 2) rack(c, r.x + r.w / 2, z);
     c.lamp({ x: r.x + r.w / 2, z: r.z + r.d / 2, color: 0x7fb6ff, intensity: 14, distance: 8, mode: 'fluoro' });
   }
 }
@@ -100,7 +101,8 @@ export function buildServerArchiveProps(c: BuildContext, servers: Rect[], storag
   c.lamp({ x: 44, z: 15, kind: 'em', color: 0xff2a1a, intensity: 5, distance: 7, mode: 'pulse', y: 2.6 });
 
   for (const r of servers) {
-    for (let z = r.z + 1; z < r.z + r.d - 0.5; z += 2) rack(c, r.x + r.w / 2, z);
+    // 2 м отступ от стен: дверь стоит по центру короткой стены
+    for (let z = r.z + 2; z < r.z + r.d - 1.5; z += 2) rack(c, r.x + r.w / 2, z);
     c.lamp({ x: r.x + r.w / 2, z: r.z + r.d / 2, color: 0x7fb6ff, intensity: 15, distance: 8, mode: 'fluoro' });
   }
 

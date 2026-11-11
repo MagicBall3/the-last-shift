@@ -43,7 +43,9 @@ const world = new World();
 const levels = world.levels;
 const player = new Player(world.spawn, world.spawnYaw, world.collision);
 world.attachPlayer(player.position);
-const transitions = new LevelTransitions(levels, player);
+/** Значения затемнения экрана, которые получил UI за все переходы. */
+const fades: number[] = [];
+const transitions = new LevelTransitions(levels, player, { onFade: (value) => fades.push(value) });
 
 const DT = 1 / 60;
 const RADIUS = 0.3;
@@ -125,6 +127,9 @@ function expectLevel(expected: number, context: string): void {
   if (world.collision.isBlocked(player.position.x, player.position.z, RADIUS)) {
     err(`${context}: игрок оказался внутри стены (${player.position.x.toFixed(2)}, ${player.position.z.toFixed(2)})`);
   }
+  if (player.speed !== 0) {
+    err(`${context}: после приземления осталась скорость ${player.speed.toFixed(2)} м/с`);
+  }
 }
 
 // ── Вверх: 0 → 1 → 2 → 3 ──
@@ -160,6 +165,12 @@ console.log(`Вверх:        ${upPath.join(' → ')}`);
 console.log(`Вниз:         ${downPath.join(' → ')}`);
 console.log(`Обратно:      ${backPath.join(' → ')}`);
 console.log(`Финальная y:  ${player.position.y.toFixed(2)} (уровень ${levelOf(player.position.y)})`);
+
+// Затемнение: камера проходит сквозь перекрытие, поэтому экран должен уходить в чёрное
+const peakFade = fades.length ? Math.max(...fades) : 0;
+console.log(`Затемнение:   пик ${peakFade.toFixed(2)}, последнее ${(fades[fades.length - 1] ?? 0).toFixed(2)}`);
+if (peakFade < 0.95) err(`переход не затемняет экран (пик ${peakFade.toFixed(2)})`);
+if ((fades[fades.length - 1] ?? 0) !== 0) err('затемнение не сбрасывается после перехода');
 
 if (errors.length) {
   console.error('\nОШИБКИ:\n' + errors.join('\n'));

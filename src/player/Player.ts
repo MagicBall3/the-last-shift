@@ -16,6 +16,13 @@ export class Player {
   private vx = 0;
   private vz = 0;
 
+  /** Погасить инерцию: вызывается при входе на лестницу и после приземления. */
+  stopMotion(): void {
+    this.vx = 0;
+    this.vz = 0;
+    this.speed = 0;
+  }
+
   constructor(
     spawn: THREE.Vector3,
     yaw: number,

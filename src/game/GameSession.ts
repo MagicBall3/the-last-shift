@@ -63,7 +63,7 @@ export class GameSession {
     const getSettings = (): Settings => this.settings;
 
     this.engine.addModule(new PlayerController(player, this.input, getSettings));
-    this.engine.addModule(new LevelTransitions(world.levels, player));
+    this.engine.addModule(new LevelTransitions(world.levels, player, options.events));
     this.engine.addModule(new FirstPersonCamera(this.engine.camera, player, getSettings));
     this.engine.addModule(
       new InteractionSystem(this.engine.camera, world.interactables, this.input, options.events),

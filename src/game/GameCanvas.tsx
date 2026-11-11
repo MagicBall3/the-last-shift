@@ -20,6 +20,7 @@ export default function GameCanvas({ settings, paused, isTouch, onPause }: Props
   const touch = useMemo(() => new TouchControls(), []);
   const [prompt, setPrompt] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [fade, setFade] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   // Свежие значения для колбэков, живущих дольше одного рендера
@@ -44,6 +45,7 @@ export default function GameCanvas({ settings, paused, isTouch, onPause }: Props
             messageTimer = window.setTimeout(() => setMessage(null), 2500);
           },
           onLockLost: () => latest.current.onPause(),
+          onFade: setFade,
         },
       });
     } catch (e) {
@@ -84,7 +86,7 @@ export default function GameCanvas({ settings, paused, isTouch, onPause }: Props
           {error}
         </div>
       )}
-      {!error && !paused && <HUD prompt={prompt} message={message} isTouch={isTouch} />}
+      {!error && !paused && <HUD prompt={prompt} message={message} isTouch={isTouch} fade={fade} />}
       {!error && !paused && isTouch && <TouchOverlay controls={touch} onPause={onPause} />}
     </div>
   );

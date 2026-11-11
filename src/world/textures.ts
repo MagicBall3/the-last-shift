@@ -301,6 +301,34 @@ function vent(rnd: Rng): THREE.CanvasTexture {
   return finish(c);
 }
 
+/** Светящийся экран: скан-линии и строки «текста», а не ровный бирюзовый прямоугольник. */
+function screenTex(rnd: Rng): THREE.CanvasTexture {
+  const [c, ctx] = canvas();
+  ctx.fillStyle = 'rgb(10,24,28)';
+  ctx.fillRect(0, 0, SIZE, SIZE);
+  // строки данных: короткие светлые штрихи вразнобой
+  for (let y = 16; y < SIZE - 8; y += 14) {
+    let x = 18 + rnd() * 14;
+    const end = 120 + rnd() * 110;
+    while (x < end) {
+      const w = 8 + rnd() * 26;
+      ctx.fillStyle = rnd() < 0.15 ? 'rgb(190,225,220)' : 'rgb(78,140,148)';
+      ctx.fillRect(x, y, Math.min(w, end - x), 4);
+      x += w + 6 + rnd() * 10;
+    }
+  }
+  // подсветка сверху и скан-линии
+  ctx.fillStyle = 'rgba(120,200,205,0.10)';
+  ctx.fillRect(0, 0, SIZE, 60);
+  ctx.fillStyle = 'rgba(0,0,0,0.32)';
+  for (let y = 0; y < SIZE; y += 4) ctx.fillRect(0, y, SIZE, 1);
+  ctx.strokeStyle = 'rgba(150,210,210,0.35)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(6, 6, SIZE - 12, SIZE - 12);
+  grain(ctx, rnd, 8);
+  return finish(c);
+}
+
 function dirt(rnd: Rng): THREE.CanvasTexture {
   const [c, ctx] = canvas();
   ctx.fillStyle = 'rgb(96,86,72)';
@@ -341,7 +369,7 @@ function asphalt(rnd: Rng): THREE.CanvasTexture {
 
 export type TextureName =
   | 'concreteWall' | 'concreteDark' | 'floorConcrete' | 'tileWall' | 'tileFloor' | 'metalWall'
-  | 'diamond' | 'ceiling' | 'hazard' | 'wood' | 'cabinet' | 'vent'
+  | 'diamond' | 'ceiling' | 'hazard' | 'wood' | 'cabinet' | 'vent' | 'screen'
   | 'floorExterior' | 'floorAsphalt';
 
 export function createTextures(seed: number): Record<TextureName, THREE.CanvasTexture> {
@@ -359,6 +387,7 @@ export function createTextures(seed: number): Record<TextureName, THREE.CanvasTe
     wood: wood(rnd),
     cabinet: cabinet(rnd),
     vent: vent(rnd),
+    screen: screenTex(rnd),
     floorExterior: dirt(rnd),
     floorAsphalt: asphalt(rnd),
   };
@@ -374,6 +403,7 @@ export const TILE: Record<string, number> = {
 const lambert = (map: THREE.Texture | null, color: number, vertexColors = false) =>
   new THREE.MeshLambertMaterial({ map, color, vertexColors });
 const basic = (color: number) => new THREE.MeshBasicMaterial({ color });
+const unlit = (map: THREE.Texture) => new THREE.MeshBasicMaterial({ map });
 const plain = (color: number) => new THREE.MeshLambertMaterial({ color });
 
 export function createMaterials(t: Record<TextureName, THREE.CanvasTexture>): Record<string, THREE.Material> {
@@ -402,6 +432,8 @@ export function createMaterials(t: Record<TextureName, THREE.CanvasTexture>): Re
     ceiling: lambert(t.ceiling, 0xa0a09a),
     // детали
     concrete: lambert(t.concreteWall, 0xa8a8a0),
+    // ступени: та же текстура, что у пола, чуть темнее — иначе проступи бликуют
+    stair: lambert(t.floorConcrete, 0x9c9c96),
     metal: lambert(t.metalWall, 0xb4bcbc),
     doorMetal: lambert(t.metalWall, 0x7f9488),
     hazard: lambert(t.hazard, 0xd0d0d0),
@@ -421,7 +453,7 @@ export function createMaterials(t: Record<TextureName, THREE.CanvasTexture>): Re
     emRed: basic(0xff3322),
     ledRed: basic(0xff2a1a),
     ledGreen: basic(0x31ff6a),
-    screenOn: basic(0x3a8ea6),
+    screenOn: unlit(t.screen),
     screenOff: plain(0x07090a),
     tank: basic(0x1b4a38),
   };
