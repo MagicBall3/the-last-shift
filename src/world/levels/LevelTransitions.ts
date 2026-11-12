@@ -5,12 +5,13 @@ import type { Level } from './Level';
 import { levelIndexAt } from './levelIndex';
 import {
   insideRect,
-  NICHE_DOWN_CENTER,
-  NICHE_UP_CENTER,
-  STAIR_DOWN_NICHE,
   STAIR_DURATION,
-  STAIR_UP_NICHE,
+  STAIR_NICHE_NORTH,
+  STAIR_NICHE_SOUTH,
+  stairLanding,
   stairTarget,
+  stairZone,
+  type StairRect,
 } from './stairs';
 
 function easeInOut(t: number): number {
@@ -25,6 +26,8 @@ function fadeAt(k: number): number {
 interface ActiveTransition {
   start: THREE.Vector3;
   end: THREE.Vector3;
+  /** Индекс целевого уровня (для сообщения игроку). */
+  target: number;
   t: number;
   duration: number;
 }
@@ -32,12 +35,16 @@ interface ActiveTransition {
 /**
  * Вертикальные переходы по лестничным нишам.
  *
- * Переход срабатывает, когда игрок входит в нишу. Приземление — в центре той же ниши
- * на целевом уровне, поэтому нужен флаг «взведено»: пока игрок находится в нише,
- * новый переход невозможен; флаг снимается, только когда он выйдет из обеих ниш.
+ * Лестница одна и та же в обеих нишах: марш поднимается к северу, вдоль западной
+ * стены — проход. Подход к южному концу (низ марша) ведёт вверх, к северному
+ * (верх у проёма) — вниз. Поэтому направление определяется не нишей, а зоной,
+ * в которую вошёл игрок.
  *
- * Камера проходит сквозь перекрытие, поэтому на середине пути экран затемняется —
- * без этого лестница выглядела как телепорт через бетон.
+ * Переход срабатывает только при входе в зону; флаг «взведено» снимается до тех
+ * пор, пока игрок не выйдет из обеих ниш, — повторного срабатывания при одном
+ * подходе нет. Приземление — середина прохода на целевом уровне, между зонами.
+ *
+ * Камера проходит сквозь перекрытие, поэтому на середине пути экран затемняется.
  */
 export class LevelTransitions implements GameModule {
   private active: ActiveTransition | null = null;
@@ -47,7 +54,7 @@ export class LevelTransitions implements GameModule {
   constructor(
     private readonly levels: Level[],
     private readonly player: Player,
-    private readonly events?: Pick<GameEvents, 'onFade'>,
+    private readonly events?: Pick<GameEvents, 'onFade' | 'onMessage'>,
   ) {}
 
   update(dt: number): void {
@@ -63,6 +70,7 @@ export class LevelTransitions implements GameModule {
       this.setFade(fadeAt(k));
       if (k >= 1) {
         p.set(this.active.end.x, this.active.end.y, this.active.end.z);
+        const target = this.active.target;
         this.active = null;
         this.player.transitioning = false;
         this.player.stopMotion();
@@ -70,28 +78,35 @@ export class LevelTransitions implements GameModule {
         // последняя маленькая доля черноты
         this.fade = 0;
         this.events?.onFade?.(0);
+        this.events?.onMessage?.(this.levels[target].name);
       }
       return;
     }
 
-    const inUp = insideRect(STAIR_UP_NICHE, p.x, p.z);
-    const inDown = insideRect(STAIR_DOWN_NICHE, p.x, p.z);
-    if (!inUp && !inDown) {
+    const niche = this.nicheAt(p.x, p.z);
+    if (!niche) {
       this.armed = true;
       return;
     }
+
+    const inUp = insideRect(stairZone(niche, 1), p.x, p.z);
+    const inDown = insideRect(stairZone(niche, -1), p.x, p.z);
+    // Середина ниши — нейтральная площадка между зонами
+    if (!inUp && !inDown) return;
     if (!this.armed) return;
 
+    const dir: 1 | -1 = inUp ? 1 : -1;
     const idx = levelIndexAt(this.levels, p.y);
-    const dir = inUp ? 1 : -1;
     const targetIdx = stairTarget(idx, dir);
+    // Верх/низ комплекса: переходить некуда — просто не срабатываем
     if (targetIdx === null || targetIdx < 0 || targetIdx >= this.levels.length) return;
 
     const target = this.levels[targetIdx];
-    const landing = inUp ? NICHE_UP_CENTER : NICHE_DOWN_CENTER;
+    const landing = stairLanding(niche);
     this.active = {
       start: p.clone(),
       end: new THREE.Vector3(landing.x, target.baseY, landing.z),
+      target: targetIdx,
       t: 0,
       duration: STAIR_DURATION,
     };
@@ -100,6 +115,12 @@ export class LevelTransitions implements GameModule {
     this.player.stopMotion();
     this.fade = 0;
     this.events?.onFade?.(0);
+  }
+
+  private nicheAt(x: number, z: number): StairRect | null {
+    if (insideRect(STAIR_NICHE_NORTH, x, z)) return STAIR_NICHE_NORTH;
+    if (insideRect(STAIR_NICHE_SOUTH, x, z)) return STAIR_NICHE_SOUTH;
+    return null;
   }
 
   private setFade(value: number): void {

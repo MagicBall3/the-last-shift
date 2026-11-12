@@ -1,6 +1,6 @@
 import type { DoorDef, ZoneId } from '../layout';
 import type { GridData, ZoneDef } from '../grid';
-import { STAIR_DOWN_NICHE, STAIR_UP_NICHE } from './stairs';
+import { STAIR_NICHE_NORTH, STAIR_NICHE_SOUTH } from './stairs';
 
 /**
  * Верхние этажи главного корпуса (этажи 2–4) — та же сетка и тот же контур
@@ -25,8 +25,8 @@ function floorSkeleton(): ZoneDef[] {
       rects: [
         { x: 43, z: 13, w: 2, d: 5 },
         { x: 43, z: 21, w: 2, d: 8 },
-        STAIR_UP_NICHE,
-        STAIR_DOWN_NICHE,
+        STAIR_NICHE_NORTH,
+        STAIR_NICHE_SOUTH,
       ],
     },
   ];

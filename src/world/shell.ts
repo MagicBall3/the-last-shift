@@ -4,6 +4,7 @@ import type { CellZone } from './layout';
 import { StaticBatch, withColor } from './StaticBatch';
 import { TILE } from './textures';
 import { CONFIG } from '../core/config';
+import { isStairOpening } from './levels/stairs';
 
 /** Непрерывный участок стены; по ним расставляются трубы, вентиляция и прочие детали. */
 export interface WallRun {
@@ -97,12 +98,15 @@ export function buildShell(grid: Grid, batch: StaticBatch): WallRun[] {
   const runs: WallRun[] = [];
   const zoneOf = (i: number, j: number): CellZone => grid.zoneAt(i, j) ?? 'corridor';
 
-  // Пол и потолок: горизонтальные полосы одинакового материала
+  // Пол и потолок: горизонтальные полосы одинакового материала.
+  // В клетках лестничных проёмов не строится ни пол, ни потолок: потолок этажа
+  // совпадает с полом следующего, поэтому шахта получается сквозной.
   for (let j = 0; j < grid.depth; j += 1) {
     let start = -1;
     let key = '';
     for (let i = 0; i <= grid.width; i += 1) {
-      const k = i < grid.width && grid.isFloor(i, j) ? STYLE[zoneOf(i, j)].floor : '';
+      const k =
+        i < grid.width && grid.isFloor(i, j) && !isStairOpening(i, j) ? STYLE[zoneOf(i, j)].floor : '';
       if (start >= 0 && k !== key) {
         horizontalQuad(batch, key, start, j, i, j + 1, 0, true);
         if (!OUTDOOR_FLOORS.has(key)) horizontalQuad(batch, 'ceiling', start, j, i, j + 1, H, false);

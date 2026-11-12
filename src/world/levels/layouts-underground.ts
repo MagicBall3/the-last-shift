@@ -1,6 +1,6 @@
 import type { DoorDef, ZoneId } from '../layout';
 import type { GridData, ZoneDef } from '../grid';
-import { STAIR_DOWN_NICHE, STAIR_UP_NICHE } from './stairs';
+import { STAIR_NICHE_NORTH, STAIR_NICHE_SOUTH } from './stairs';
 
 /**
  * Подземные уровни NADIR (ниже главного здания). Своя, более широкая планировка:
@@ -23,8 +23,8 @@ function underFloor(spec: UnderSpec): GridData {
       id: 'service',
       rects: [
         { x: 41, z: 10, w: 4, d: 20 },
-        STAIR_UP_NICHE,
-        STAIR_DOWN_NICHE,
+        STAIR_NICHE_NORTH,
+        STAIR_NICHE_SOUTH,
       ],
     },
     ...spec.north,

@@ -42,7 +42,7 @@ function makeCtx(): any {
 
 import { CONFIG } from '../src/core/config';
 import { World } from '../src/world/World';
-import { NICHE_DOWN_CENTER, NICHE_UP_CENTER } from '../src/world/levels/stairs';
+import { STAIR_NICHE_NORTH, STAIR_NICHE_SOUTH, stairLanding } from '../src/world/levels/stairs';
 
 /** Шаг проверки, м. */
 const STEP = 0.25;
@@ -90,9 +90,13 @@ for (let li = 0; li < levels.length; li += 1) {
     return grid.isFloor(Math.floor(x), Math.floor(z)) && !world.collision.isBlocked(x, z, radius);
   };
 
+  // Стартуем с площадок приземления в проходе: именно туда попадает игрок
+  // после перехода, и оттуда должна быть достижима вся остальная геометрия.
+  const north = stairLanding(STAIR_NICHE_NORTH);
+  const south = stairLanding(STAIR_NICHE_SOUTH);
   const seeds: [number, number][] = [
-    [NICHE_UP_CENTER.x, NICHE_UP_CENTER.z],
-    [NICHE_DOWN_CENTER.x, NICHE_DOWN_CENTER.z],
+    [north.x, north.z],
+    [south.x, south.z],
   ];
   if (li === 0) seeds.push([world.spawn.x, world.spawn.z]);
 

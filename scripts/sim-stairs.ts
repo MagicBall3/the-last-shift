@@ -30,11 +30,20 @@ function makeCtx(): any {
   },
 };
 
-import * as THREE from 'three';
+import { CONFIG } from '../src/core/config';
 import { World } from '../src/world/World';
 import { Player } from '../src/player/Player';
 import { LevelTransitions } from '../src/world/levels/LevelTransitions';
-import { NICHE_DOWN_CENTER, NICHE_UP_CENTER } from '../src/world/levels/stairs';
+import {
+  STAIR_NICHE_NORTH,
+  STAIR_NICHE_SOUTH,
+  STAIR_OPENINGS,
+  stairFlightFootprint,
+  stairLanding,
+  stairTarget,
+  stairZone,
+  type StairRect,
+} from '../src/world/levels/stairs';
 
 const errors: string[] = [];
 const err = (m: string) => errors.push(m);
@@ -43,34 +52,73 @@ const world = new World();
 const levels = world.levels;
 const player = new Player(world.spawn, world.spawnYaw, world.collision);
 world.attachPlayer(player.position);
+
 /** Значения затемнения экрана, которые получил UI за все переходы. */
 const fades: number[] = [];
-const transitions = new LevelTransitions(levels, player, { onFade: (value) => fades.push(value) });
+/** Сообщения о прибытии на этаж. */
+const messages: string[] = [];
+const transitions = new LevelTransitions(levels, player, {
+  onFade: (value) => fades.push(value),
+  onMessage: (message) => messages.push(message),
+});
 
 const DT = 1 / 60;
-const RADIUS = 0.3;
+const RADIUS = CONFIG.player.radius;
+const NICHES: [string, StairRect][] = [
+  ['северная', STAIR_NICHE_NORTH],
+  ['южная', STAIR_NICHE_SOUTH],
+];
 
-/** Проводит игрока к точке по прямой, шагами, с проверкой коллизий. */
-function walkTo(tx: number, tz: number): boolean {
-  for (let step = 0; step < 400; step += 1) {
+function levelOf(y: number): number {
+  return levels.findIndex((l) => Math.abs(l.baseY - y) < 0.01);
+}
+
+/**
+ * Ставит игрока в служебный коридор западнее ниши и взводит переход.
+ * Точка обязана быть на полу и вне обеих ниш: только тогда LevelTransitions
+ * снова разрешает срабатывание.
+ */
+function standOutside(index: number, niche: StairRect, z: number): boolean {
+  if (player.transitioning) {
+    err(`standOutside: активен переход (уровень ${index})`);
+    return false;
+  }
+  player.position.set(niche.x - 0.6, levels[index].baseY, z);
+  player.stopMotion();
+  if (world.collision.isBlocked(player.position.x, player.position.z, RADIUS)) {
+    err(`Точка подхода (${player.position.x.toFixed(2)}, ${player.position.z.toFixed(2)}) уровня ${index} заблокирована`);
+    return false;
+  }
+  transitions.update(DT);
+  if (player.transitioning) {
+    err(`Переход сработал снаружи ниши (уровень ${index})`);
+    return false;
+  }
+  return true;
+}
+
+/** Идёт к точке по прямой; возвращает, дошёл ли и начался ли переход. */
+function walkTo(tx: number, tz: number): { reached: boolean; started: boolean } {
+  for (let step = 0; step < 800; step += 1) {
     const p = player.position;
     const dx = tx - p.x;
     const dz = tz - p.z;
     const dist = Math.hypot(dx, dz);
-    if (dist < 0.12) return true;
-    const nx = p.x + (dx / dist) * 0.08;
-    const nz = p.z + (dz / dist) * 0.08;
-    if (world.collision.isBlocked(nx, nz, RADIUS)) return false;
+    if (dist < 0.04) return { reached: true, started: false };
+    const k = Math.min(0.04, dist);
+    const nx = p.x + (dx / dist) * k;
+    const nz = p.z + (dz / dist) * k;
+    if (world.collision.isBlocked(nx, nz, RADIUS)) return { reached: false, started: false };
     p.x = nx;
     p.z = nz;
     transitions.update(DT);
-    if (player.transitioning) return true;
+    if (player.transitioning) return { reached: false, started: true };
   }
-  return false;
+  return { reached: false, started: false };
 }
 
 /** Прокручивает переход до завершения. */
-function finishTransition(): boolean {
+function finish(): boolean {
   for (let i = 0; i < 600; i += 1) {
     transitions.update(DT);
     if (!player.transitioning) return true;
@@ -78,102 +126,216 @@ function finishTransition(): boolean {
   return false;
 }
 
-/** Выходит из ниши в коридор, чтобы «взвести» переход. */
-function leaveNiche(): void {
-  const p = player.position;
-  // ниша x 45–47; коридор/служебный проход западнее
-  for (let i = 0; i < 60; i += 1) {
-    const nx = p.x - 0.08;
-    if (world.collision.isBlocked(nx, p.z, RADIUS)) break;
-    p.x = nx;
-    transitions.update(DT);
-    if (player.transitioning) return;
+function expectAt(levelIndex: number, niche: StairRect, context: string): void {
+  if (player.transitioning) err(`${context}: переход не завершён`);
+  const got = levelOf(player.position.y);
+  if (got !== levelIndex) err(`${context}: ожидался уровень ${levelIndex}, получен ${got} (y=${player.position.y.toFixed(2)})`);
+
+  const landing = stairLanding(niche);
+  if (Math.abs(player.position.x - landing.x) > 0.01 || Math.abs(player.position.z - landing.z) > 0.01) {
+    err(
+      `${context}: приземление (${player.position.x.toFixed(2)}, ${player.position.z.toFixed(2)}) ` +
+        `вместо (${landing.x},${landing.z})`,
+    );
+  }
+  if (world.collision.isBlocked(player.position.x, player.position.z, RADIUS)) err(`${context}: приземление в стене`);
+  if (player.speed !== 0) err(`${context}: после приземления осталась скорость ${player.speed.toFixed(2)} м/с`);
+  if ((fades[fades.length - 1] ?? 0) !== 0) err(`${context}: затемнение не сброшено`);
+  if (messages[messages.length - 1] !== levels[levelIndex].name) {
+    err(`${context}: сообщение «${messages[messages.length - 1]}» вместо «${levels[levelIndex].name}»`);
   }
 }
 
-/** Подход к нише снаружи и переход. */
-function useStair(kind: 'up' | 'down'): boolean {
-  const center = kind === 'up' ? NICHE_UP_CENTER : NICHE_DOWN_CENTER;
-  // встаём в 1.6 м западнее центра ниши, в проходе
-  const p = player.position;
-  p.x = center.x - 1.8;
-  p.z = center.z;
-  player.transitioning = false;
-  // «взвести»: имитируем, что игрок только что пришёл снаружи
-  leaveNiche();
-  if (player.transitioning) return false; // не должен сработать на выходе
-
-  const reached = walkTo(center.x, center.z);
-  if (!player.transitioning) {
-    err(`Лестница «${kind}» не сработала: дошёл=${reached}, позиция ${p.x.toFixed(2)},${p.z.toFixed(2)}`);
-    return false;
+/**
+ * После приземления игрок стоит между зонами. Переход не должен срабатывать
+ * повторно, даже если ходить внутри ниши, — пока игрок не выйдет наружу.
+ */
+function expectNoRepeat(niche: StairRect, levelIndex: number, context: string): void {
+  for (let i = 0; i < 90; i += 1) transitions.update(DT);
+  if (player.transitioning) {
+    err(`${context}: повторное срабатывание на площадке приземления`);
+    return;
   }
-  if (!finishTransition()) {
-    err(`Переход «${kind}» не завершился за отведённое время`);
-    return false;
+
+  const x = niche.x + niche.w / 4;
+  const zs = [niche.z + 0.8, niche.z + niche.d - 0.8, niche.z + niche.d / 2];
+  for (const z of zs) {
+    const res = walkTo(x, z);
+    if (player.transitioning) {
+      err(`${context}: повторное срабатывание внутри ниши (z=${z.toFixed(2)})`);
+      return;
+    }
+    if (!res.reached) {
+      err(`${context}: проход ниши застрял на z=${z.toFixed(2)}`);
+      return;
+    }
   }
-  return true;
+  if (levelOf(player.position.y) !== levelIndex) err(`${context}: уровень изменился без выхода из ниши`);
 }
 
-function levelOf(y: number): number {
-  return levels.findIndex((l) => Math.abs(l.baseY - y) < 0.01);
-}
-
-function expectLevel(expected: number, context: string): void {
-  const idx = levelOf(player.position.y);
-  if (idx !== expected) {
-    err(`${context}: ожидался уровень ${expected}, получен ${idx} (y=${player.position.y.toFixed(2)})`);
+/** Выход из ниши и повторный вход: флаг «взведено» обязан сброситься. */
+function expectRearm(index: number, niche: StairRect, context: string): void {
+  const midZ = niche.z + niche.d / 2;
+  const out = walkTo(niche.x - 0.6, midZ);
+  if (player.transitioning || !out.reached) {
+    err(`${context}: не удалось выйти из ниши для повторного взвода`);
+    return;
   }
-  if (world.collision.isBlocked(player.position.x, player.position.z, RADIUS)) {
-    err(`${context}: игрок оказался внутри стены (${player.position.x.toFixed(2)}, ${player.position.z.toFixed(2)})`);
+
+  const zone = stairZone(niche, 1);
+  const z = zone.z + zone.d / 2;
+  const back = walkTo(niche.x + 0.5, z);
+  if (!back.started || !player.transitioning) {
+    err(`${context}: после выхода переход не взвёлся заново`);
+    return;
   }
-  if (player.speed !== 0) {
-    err(`${context}: после приземления осталась скорость ${player.speed.toFixed(2)} м/с`);
+  if (!finish()) {
+    err(`${context}: повторный переход не завершился`);
+    return;
+  }
+  const expected = stairTarget(index, 1);
+  if (expected === null) err(`${context}: вверх идти некуда`);
+  else expectAt(expected, niche, `${context} (повторно)`);
+}
+
+/** Один сценарий: подход к нужному концу марша и переход. */
+function testOne(index: number, nicheName: string, niche: StairRect, dir: 1 | -1): void {
+  const context = `уровень ${index}, ${nicheName} ниша, ${dir === 1 ? 'вверх' : 'вниз'}`;
+  const expected = stairTarget(index, dir);
+  if (expected === null) {
+    err(`${context}: нет целевого уровня`);
+    return;
+  }
+
+  const zone = stairZone(niche, dir);
+  const zTarget = zone.z + zone.d / 2;
+  const midZ = niche.z + niche.d / 2;
+
+  if (!standOutside(index, niche, dir === 1 ? zTarget : midZ)) return;
+
+  if (dir === 1) {
+    const res = walkTo(niche.x + 0.5, zTarget);
+    if (!res.started || !player.transitioning) {
+      err(`${context}: переход не начался при входе в зону «вверх»`);
+      return;
+    }
+  } else {
+    // Сначала входим в нейтральную середину — здесь перехода быть не должно.
+    const toMid = walkTo(niche.x + 0.5, midZ);
+    if (player.transitioning) {
+      err(`${context}: переход сработал в нейтральной середине ниши`);
+      return;
+    }
+    if (!toMid.reached) {
+      err(`${context}: не удалось войти в нейтральную середину ниши`);
+      return;
+    }
+    const res = walkTo(niche.x + 0.5, zTarget);
+    if (!res.started || !player.transitioning) {
+      err(`${context}: переход не начался при входе в зону «вниз»`);
+      return;
+    }
+  }
+
+  if (!finish()) {
+    err(`${context}: переход не завершился за отведённое время`);
+    return;
+  }
+  expectAt(expected, niche, context);
+  expectNoRepeat(niche, expected, context);
+  console.log(`OK   ${context}: ${index} → ${expected}`);
+}
+
+/** Проверяет, что точка перекрыта коллизией марша. */
+function expectBlocked(context: string, x: number, z: number): void {
+  if (!world.collision.isBlocked(x, z, RADIUS)) err(`${context}: точка (${x},${z}) проходима`);
+}
+
+/** Марш и проём: игрок не проходит сквозь ступени и не встаёт над дырой. */
+function expectSolid(levelIndex: number, nicheName: string, niche: StairRect): void {
+  const context = `уровень ${levelIndex}, ${nicheName} ниша`;
+  player.position.set(stairLanding(niche).x, levels[levelIndex].baseY, niche.z + niche.d / 2);
+  player.stopMotion();
+
+  const f = stairFlightFootprint(niche);
+  const fx0 = f.x - f.w / 2;
+  const res = walkTo(f.x, niche.z + 2);
+  if (player.transitioning) err(`${context}: переход при попытке войти в марш`);
+  if (res.reached) err(`${context}: игрок прошёл сквозь марш`);
+  if (player.position.x > fx0 - RADIUS + 0.01) {
+    err(`${context}: игрок залез в марш (x=${player.position.x.toFixed(2)}, граница ${(fx0 - RADIUS).toFixed(2)})`);
+  }
+
+  const hole = STAIR_OPENINGS.find((o) => o.z >= niche.z && o.z < niche.z + niche.d);
+  if (!hole) {
+    err(`${context}: нет клетки проёма`);
+    return;
+  }
+  for (let dz = 0; dz < hole.d; dz += 1) {
+    for (const fx of [0.1, 0.5, 0.9]) {
+      for (const fz of [0.1, 0.5, 0.9]) {
+        expectBlocked(`${context} (проём)`, hole.x + fx, hole.z + dz + fz);
+      }
+    }
   }
 }
 
-// ── Вверх: 0 → 1 → 2 → 3 ──
-const upPath: number[] = [0];
-for (let target = 1; target <= 3; target += 1) {
-  if (!useStair('up')) break;
-  expectLevel(target, `подъём на уровень ${target}`);
-  upPath.push(target);
-  leaveNiche();
+// ── 1. Оба направления в обеих нишах (на наземном уровне) ──────────────────
+for (const [name, niche] of NICHES) {
+  for (const dir of [1, -1] as const) {
+    testOne(0, name, niche, dir);
+    standOutside(0, STAIR_NICHE_NORTH, STAIR_NICHE_NORTH.z + STAIR_NICHE_NORTH.d / 2);
+  }
 }
 
-// ── Вниз: 3 → 2 → 1 → 0 → 4 → 5 → 6 ──
-const downPath: number[] = [levelOf(player.position.y)];
-for (let i = 0; i < 6; i += 1) {
-  if (!useStair('down')) break;
-  const idx = levelOf(player.position.y);
-  expectLevel(idx, 'спуск');
-  downPath.push(idx);
-  leaveNiche();
+// ── 2. Повторный вход после выхода должен снова взводить переход ───────────
+testOne(0, 'северная', STAIR_NICHE_NORTH, 1);
+expectRearm(1, STAIR_NICHE_NORTH, 'повторный взвод');
+standOutside(0, STAIR_NICHE_NORTH, STAIR_NICHE_NORTH.z + 2);
+
+// ── 3. Маршрут по всему комплексу: вверх северной, вниз южной ──────────────
+const route: { from: number; dir: 1 | -1; nicheName: string; niche: StairRect }[] = [
+  { from: 0, dir: 1, nicheName: 'северная', niche: STAIR_NICHE_NORTH },
+  { from: 1, dir: 1, nicheName: 'северная', niche: STAIR_NICHE_NORTH },
+  { from: 2, dir: 1, nicheName: 'северная', niche: STAIR_NICHE_NORTH },
+  { from: 3, dir: -1, nicheName: 'южная', niche: STAIR_NICHE_SOUTH },
+  { from: 2, dir: -1, nicheName: 'южная', niche: STAIR_NICHE_SOUTH },
+  { from: 1, dir: -1, nicheName: 'южная', niche: STAIR_NICHE_SOUTH },
+  { from: 0, dir: -1, nicheName: 'южная', niche: STAIR_NICHE_SOUTH },
+  { from: 4, dir: -1, nicheName: 'южная', niche: STAIR_NICHE_SOUTH },
+  { from: 5, dir: -1, nicheName: 'южная', niche: STAIR_NICHE_SOUTH },
+  { from: 6, dir: 1, nicheName: 'северная', niche: STAIR_NICHE_NORTH },
+  { from: 5, dir: 1, nicheName: 'северная', niche: STAIR_NICHE_NORTH },
+  { from: 4, dir: 1, nicheName: 'северная', niche: STAIR_NICHE_NORTH },
+];
+const path: number[] = [route[0].from];
+for (const step of route) {
+  const here = levelOf(player.position.y);
+  if (here !== step.from) {
+    err(`Маршрут: стоим на уровне ${here}, шаг ожидает ${step.from}`);
+    break;
+  }
+  testOne(step.from, step.nicheName, step.niche, step.dir);
+  path.push(levelOf(player.position.y));
+}
+const routeEnd = levelOf(player.position.y);
+
+// ── 4. Марш и проём непроходимы на каждом уровне ───────────────────────────
+for (let index = 0; index < levels.length; index += 1) {
+  for (const [name, niche] of NICHES) expectSolid(index, name, niche);
 }
 
-// ── Обратно вверх: 6 → 5 → 4 → 0 ──
-const backPath: number[] = [levelOf(player.position.y)];
-for (let i = 0; i < 3; i += 1) {
-  if (!useStair('up')) break;
-  const idx = levelOf(player.position.y);
-  expectLevel(idx, 'подъём обратно');
-  backPath.push(idx);
-  leaveNiche();
-}
-
-console.log(`Вверх:        ${upPath.join(' → ')}`);
-console.log(`Вниз:         ${downPath.join(' → ')}`);
-console.log(`Обратно:      ${backPath.join(' → ')}`);
-console.log(`Финальная y:  ${player.position.y.toFixed(2)} (уровень ${levelOf(player.position.y)})`);
-
-// Затемнение: камера проходит сквозь перекрытие, поэтому экран должен уходить в чёрное
+// ── 5. Затемнение: камера проходит сквозь перекрытие ───────────────────────
 const peakFade = fades.length ? Math.max(...fades) : 0;
+console.log(`Маршрут:      ${path.join(' → ')}`);
+console.log(`Финал маршрута: уровень ${routeEnd} (y=${levels[routeEnd]?.baseY.toFixed(2)})`);
 console.log(`Затемнение:   пик ${peakFade.toFixed(2)}, последнее ${(fades[fades.length - 1] ?? 0).toFixed(2)}`);
+console.log(`Сообщений:    ${messages.length}`);
 if (peakFade < 0.95) err(`переход не затемняет экран (пик ${peakFade.toFixed(2)})`);
 if ((fades[fades.length - 1] ?? 0) !== 0) err('затемнение не сбрасывается после перехода');
 
 if (errors.length) {
-  console.error('\nОШИБКИ:\n' + errors.join('\n'));
+  console.error('\nОШИБКИ:\n' + [...new Set(errors)].join('\n'));
   process.exit(1);
 }
-console.log('\nЛестницы проходимы: переходы срабатывают, приземление свободно.');
+console.log('\nЛестницы проходимы: оба направления в обеих нишах, марш и проём непроходимы.');

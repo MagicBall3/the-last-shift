@@ -7,7 +7,10 @@ import {
   underground2GridData,
   underground3GridData,
 } from '../src/world/levels/layouts-underground';
-import { NICHE_DOWN_CENTER, NICHE_UP_CENTER } from '../src/world/levels/stairs';
+import { STAIR_NICHE_NORTH, STAIR_NICHE_SOUTH, stairLanding } from '../src/world/levels/stairs';
+
+const NORTH_LANDING = stairLanding(STAIR_NICHE_NORTH);
+const SOUTH_LANDING = stairLanding(STAIR_NICHE_SOUTH);
 
 interface Case {
   name: string;
@@ -24,16 +27,16 @@ const cases: Case[] = [
     data: { width: ext.width, depth: ext.depth, zones: [...base.zones, ...exteriorZones], doors: [...base.doors, ...exteriorDoors] },
     seeds: [
       [SPAWN.x, SPAWN.z],
-      [NICHE_UP_CENTER.x, NICHE_UP_CENTER.z],
-      [NICHE_DOWN_CENTER.x, NICHE_DOWN_CENTER.z],
+      [NORTH_LANDING.x, NORTH_LANDING.z],
+      [SOUTH_LANDING.x, SOUTH_LANDING.z],
     ],
   },
-  { name: 'этаж 2', data: floor2GridData(), seeds: [[NICHE_UP_CENTER.x, NICHE_UP_CENTER.z], [NICHE_DOWN_CENTER.x, NICHE_DOWN_CENTER.z]] },
-  { name: 'этаж 3', data: floor3GridData(), seeds: [[NICHE_UP_CENTER.x, NICHE_UP_CENTER.z], [NICHE_DOWN_CENTER.x, NICHE_DOWN_CENTER.z]] },
-  { name: 'этаж 4', data: floor4GridData(), seeds: [[NICHE_UP_CENTER.x, NICHE_UP_CENTER.z], [NICHE_DOWN_CENTER.x, NICHE_DOWN_CENTER.z]] },
-  { name: 'уровень −1', data: underground1GridData(), seeds: [[NICHE_UP_CENTER.x, NICHE_UP_CENTER.z], [NICHE_DOWN_CENTER.x, NICHE_DOWN_CENTER.z]] },
-  { name: 'уровень −2', data: underground2GridData(), seeds: [[NICHE_UP_CENTER.x, NICHE_UP_CENTER.z], [NICHE_DOWN_CENTER.x, NICHE_DOWN_CENTER.z]] },
-  { name: 'уровень −3', data: underground3GridData(), seeds: [[NICHE_UP_CENTER.x, NICHE_UP_CENTER.z], [NICHE_DOWN_CENTER.x, NICHE_DOWN_CENTER.z]] },
+  { name: 'этаж 2', data: floor2GridData(), seeds: [[NORTH_LANDING.x, NORTH_LANDING.z], [SOUTH_LANDING.x, SOUTH_LANDING.z]] },
+  { name: 'этаж 3', data: floor3GridData(), seeds: [[NORTH_LANDING.x, NORTH_LANDING.z], [SOUTH_LANDING.x, SOUTH_LANDING.z]] },
+  { name: 'этаж 4', data: floor4GridData(), seeds: [[NORTH_LANDING.x, NORTH_LANDING.z], [SOUTH_LANDING.x, SOUTH_LANDING.z]] },
+  { name: 'уровень −1', data: underground1GridData(), seeds: [[NORTH_LANDING.x, NORTH_LANDING.z], [SOUTH_LANDING.x, SOUTH_LANDING.z]] },
+  { name: 'уровень −2', data: underground2GridData(), seeds: [[NORTH_LANDING.x, NORTH_LANDING.z], [SOUTH_LANDING.x, SOUTH_LANDING.z]] },
+  { name: 'уровень −3', data: underground3GridData(), seeds: [[NORTH_LANDING.x, NORTH_LANDING.z], [SOUTH_LANDING.x, SOUTH_LANDING.z]] },
 ];
 
 let failed = 0;

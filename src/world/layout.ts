@@ -3,7 +3,7 @@
  * Сетка 1×1 м: x — колонка, z — строка. Всё, что не вырезано, — сплошной бетон.
  * Стены строятся автоматически на границах «пол ↔ бетон», поэтому здание единое по построению.
  */
-import { STAIR_DOWN_NICHE, STAIR_UP_NICHE } from './levels/stairs';
+import { STAIR_NICHE_NORTH, STAIR_NICHE_SOUTH } from './levels/stairs';
 
 export const GRID_W = 48;
 export const GRID_D = 46;
@@ -44,8 +44,8 @@ export const ZONES: { id: ZoneId; rects: Rect[] }[] = [
       { x: 17, z: 5, w: 14, d: 2 }, // северная галерея над лабораторией
       { x: 43, z: 31, w: 2, d: 7 }, // тупиковая ветка на юг, к вентиляционной
       // Лестничные ниши: те же координаты на всех уровнях комплекса
-      STAIR_UP_NICHE,
-      STAIR_DOWN_NICHE,
+      STAIR_NICHE_NORTH,
+      STAIR_NICHE_SOUTH,
     ],
   },
   { id: 'security', rects: [{ x: 10, z: 10, w: 6, d: 7 }] },

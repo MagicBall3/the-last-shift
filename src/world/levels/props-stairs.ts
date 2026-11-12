@@ -1,104 +1,130 @@
 import type { BuildContext } from '../context';
-import { NICHE_DOWN_CENTER, NICHE_UP_CENTER, STAIR_DOWN_NICHE, STAIR_UP_NICHE, type StairRect } from './stairs';
+import {
+  NICHE_NORTH_CENTER,
+  NICHE_SOUTH_CENTER,
+  STAIR_FLIGHT_WIDTH,
+  STAIR_NICHE_NORTH,
+  STAIR_NICHE_SOUTH,
+  STAIR_OPENINGS,
+  STAIR_RISE,
+  STAIR_RUN,
+  STAIR_STEPS,
+  STAIR_TREAD,
+  STAIR_WAIST,
+  stairBottomZ,
+  stairFlightFootprint,
+  stairFlightX,
+  stairLanding,
+  stairTopZ,
+  type StairRect,
+} from './stairs';
 
 /**
- * Визуальные лестницы в двух нишах. Сам переход выполняет LevelTransitions,
- * геометрия декоративная — но она должна читаться как настоящий марш:
- * сплошные ступени (от пола до проступи), косоур, поручень и проём в перекрытии.
+ * Универсальная лестница: один и тот же марш в обеих нишах.
+ * Марш занимает восточную половину ниши и поднимается к северу; вдоль западной
+ * стены остаётся проход, по которому подходят к низу марша (вверх) или к его
+ * верху у проёма (вниз). Направление перехода решает LevelTransitions.
  *
- * Раньше ступени были отдельными плитами из материала стены, висящими в воздухе.
+ * Ступени не сплошные столбы от пола: у марша открытый низ и косоур,
+ * поэтому проём в перекрытии читается как настоящий выход наверх.
  */
 
-/** Сколько ступеней в марше. */
-const STEPS = 9;
-/** Высота подступенка, м: 9 × 0,31 ≈ 2,8 м — верх марша почти под перекрытием. */
-const RISE = 0.31;
-/** Глубина проступи, м. */
-const TREAD = 0.26;
-/** Толщина поручня и стоек, м. */
+/** Толщина поручня, стойки и косоура, м. */
 const RAIL = 0.05;
 
-/** Марш в нише: `toward = -1` — подъём на север, `+1` — на юг. */
-function flight(c: BuildContext, niche: StairRect, toward: 1 | -1): void {
-  const H = c.H;
-  const cx = niche.x + niche.w / 2;
-  const width = niche.w - 0.1;
-  const run = STEPS * TREAD;
-  const climb = STEPS * RISE;
-  // z первой (нижней) ступени — у входа в нишу
-  const z0 = toward < 0 ? niche.z + niche.d - TREAD / 2 : niche.z + TREAD / 2;
+function flight(c: BuildContext, niche: StairRect): void {
+  const cx = stairFlightX(niche);
+  const width = STAIR_FLIGHT_WIDTH;
+  const zTop = stairTopZ(niche);
+  const z0 = stairBottomZ(niche);
+  const climb = STAIR_STEPS * STAIR_RISE;
+  const run = STAIR_RUN;
 
-  for (let k = 0; k < STEPS; k += 1) {
-    const top = (k + 1) * RISE;
-    // `toward` задаёт направление подъёма: −1 — на север (z уменьшается), +1 — на юг
-    const z = z0 + toward * k * TREAD;
-    // ступень — сплошной блок от пола до проступи: получаются настоящие подступенки
-    c.detail('stair', width, top, TREAD + 0.02, cx, top / 2, z, { tile: 1 });
-    // носок ступени: тонкая полоса по передней кромке — читается даже в темноте
-    c.detail('metal', width - 0.04, 0.025, 0.05, cx, top - 0.0125, z - toward * (TREAD / 2), { tile: 1 });
+  for (let k = 0; k < STAIR_STEPS; k += 1) {
+    const top = (k + 1) * STAIR_RISE;
+    const z = z0 - k * STAIR_TREAD;
+    // Открытый низ: блок висит на косоуре, под верхними ступенями остаётся проход
+    const bottom = Math.max(0, top - STAIR_WAIST);
+    const h = top - bottom;
+    c.detail('stair', width, h, STAIR_TREAD + 0.02, cx, bottom + h / 2, z, { tile: 1 });
+    // носок ступени: тонкая полоса по передней кромке — читается и в темноте
+    c.detail('metal', width - 0.04, 0.02, 0.04, cx, top - 0.01, z + STAIR_TREAD / 2, { tile: 1 });
   }
 
-  // Поручень вдоль марша: идёт параллельно линии проступей
   const len = Math.hypot(run, climb);
-  const angle = Math.atan2(climb, run) * -toward;
-  const zMid = z0 + toward * ((STEPS - 1) * TREAD) / 2;
-  for (const x of [cx - width / 2 + RAIL, cx + width / 2 - RAIL]) {
+  const angle = Math.atan2(climb, run);
+  const zMid = zTop + run / 2;
+
+  // Косоур вдоль открытого низа марша
+  c.detail(
+    'metal',
+    0.07,
+    0.24,
+    len,
+    cx - width / 2 + 0.03,
+    climb / 2 - 0.2,
+    zMid,
+    { rot: [angle, 0, 0], tile: 1 },
+  );
+
+  // Поручни по обеим сторонам марша со стойками
+  for (const side of [-1, 1]) {
+    const x = cx + side * (width / 2 - 0.05);
     c.detail('metal', RAIL, RAIL, len, x, climb / 2 + 0.95, zMid, { rot: [angle, 0, 0], tile: 1 });
-    // стойки поручня
-    for (const k of [0, Math.floor(STEPS / 2), STEPS - 1]) {
-      const z = z0 + toward * k * TREAD;
-      const top = (k + 1) * RISE;
+    for (const k of [0, 4, STAIR_STEPS - 1]) {
+      const top = (k + 1) * STAIR_RISE;
+      const z = z0 - k * STAIR_TREAD;
       c.detail('metal', RAIL, 0.95, RAIL, x, top + 0.475, z, { tile: 1 });
     }
-  }
-
-  // Проём в перекрытии над верхней ступенью: тёмный квадрат в рамке.
-  // Настоящую дыру в потолке не вырезать (потолок — часть оболочки этажа),
-  // но тёмный люк в раме читается как выход наверх и объясняет, куда ведёт марш.
-  const zTop = z0 + toward * (STEPS - 1) * TREAD;
-  // Проём делаем на всю ширину марша: иначе верхние ступени уходят в бетон
-  // рядом с люком, а поручни протыкают потолок вне проёма.
-  const open = width + 0.06;
-  c.detail('stain', open, 0.02, open, cx, H - 0.04, zTop);
-  for (const [dx, dz, w, d] of [
-    [0, -open / 2, open + 0.16, 0.08],
-    [0, open / 2, open + 0.16, 0.08],
-    [-open / 2, 0, 0.08, open],
-    [open / 2, 0, 0.08, open],
-  ] as const) {
-    c.detail('metal', w, 0.07, d, cx + dx, H - 0.03, zTop + dz, { tile: 1 });
   }
 }
 
 export function buildStairShaft(c: BuildContext): void {
-  const H = c.H;
+  // Обе ниши — одна и та же универсальная лестница
+  for (const niche of [STAIR_NICHE_NORTH, STAIR_NICHE_SOUTH]) {
+    flight(c, niche);
 
-  // Северная ниша — подъём; южная — спуск (марш развёрнут в другую сторону)
-  flight(c, STAIR_UP_NICHE, -1);
-  flight(c, STAIR_DOWN_NICHE, 1);
+    // Единственная коллизия лестницы: габарит марша в плане.
+    // Движок 2D, поэтому одна коробка вместо коллизии на каждую ступень:
+    // игрок не проходит сквозь марш, не цепляется за носки и не попадает в проём.
+    const f = stairFlightFootprint(niche);
+    c.block(f.w, f.d, f.x, f.z);
 
-  // Указатели направления над входами в ниши
-  c.signs.add(c.batch, 'ВЫХОД', 46, 2.4, STAIR_UP_NICHE.z + STAIR_UP_NICHE.d + 0.05, 0, 1, 0.9, 0.22);
-  c.signs.add(c.batch, 'ВЫХОД', 46, 2.4, STAIR_DOWN_NICHE.z - 0.05, 0, -1, 0.9, 0.22);
+    // Рамка проёма в перекрытии: тонкий металл по краю, чтобы дыра читалась
+    // как выход шахты, а не как дыра в текстуре
+    const hole = STAIR_OPENINGS.find((o) => o.z >= niche.z && o.z < niche.z + niche.d);
+    if (hole) {
+      for (const z of [hole.z - 0.03, hole.z + hole.d + 0.03]) {
+        c.detail('metal', hole.w, 0.06, 0.06, hole.x + hole.w / 2, c.H - 0.03, z, { tile: 1 });
+      }
+      c.detail('metal', 0.06, 0.06, hole.d, hole.x + 0.03, c.H - 0.03, hole.z + hole.d / 2, { tile: 1 });
+    }
 
-  // Основной свет ядер: иначе марш не видно и лестница читается как тёмный тупик
-  c.lamp({ x: 46, z: 14, kind: 'tube', color: 0xdfe8d0, intensity: 16, distance: 8, mode: 'steady' });
-  c.lamp({ x: 46, z: 23, kind: 'tube', color: 0xdfe8d0, intensity: 16, distance: 8, mode: 'steady' });
+    // Указатели на концах прохода: куда ведёт каждый конец марша
+    c.signs.add(c.batch, 'ВНИЗ', niche.x + niche.w * 0.25, 2.3, niche.z + 0.03, 0, 1, 0.72, 0.18);
+    c.signs.add(c.batch, 'ВВЕРХ', niche.x + niche.w * 0.25, 2.3, niche.z + niche.d - 0.03, 0, -1, 0.72, 0.18);
+  }
 
-  // Подсветка подступенков снизу: без неё видны только освещённые проступи,
-  // и марш читается как ряд белых полос в темноте
-  c.lamp({ x: 46, z: 16.4, y: 2.3, kind: 'none', color: 0xcfd8c4, intensity: 8, distance: 5, mode: 'steady' });
-  c.lamp({ x: 46, z: 20.6, y: 2.3, kind: 'none', color: 0xcfd8c4, intensity: 8, distance: 5, mode: 'steady' });
+  // Основной свет ядер: иначе марш не видно и лестница читается как тёмный тупик.
+  // Светильники — над проходом (западная половина), чтобы не тонуть в ступенях.
+  c.lamp({ x: 45.5, z: NICHE_NORTH_CENTER.z, kind: 'tube', color: 0xdfe8d0, intensity: 16, distance: 8, mode: 'steady' });
+  c.lamp({ x: 45.5, z: NICHE_SOUTH_CENTER.z, kind: 'tube', color: 0xdfe8d0, intensity: 16, distance: 8, mode: 'steady' });
 
-  // Красная аварийная лампа — акцент и ориентир в темноте
-  c.lamp({ x: 46, z: 13, y: 2.4, kind: 'em', color: 0xff2a1a, intensity: 5, distance: 6, mode: 'pulse' });
-  c.lamp({ x: 46, z: 24, y: 2.4, kind: 'em', color: 0xff2a1a, intensity: 5, distance: 6, mode: 'pulse' });
+  // Подсветка шахты у проёма и под верхними ступенями
+  c.lamp({ x: 46.5, z: STAIR_NICHE_NORTH.z + 1.1, y: 1.9, kind: 'none', color: 0xcfd8c4, intensity: 8, distance: 5, mode: 'steady' });
+  c.lamp({ x: 46.5, z: STAIR_NICHE_SOUTH.z + 1.1, y: 1.9, kind: 'none', color: 0xcfd8c4, intensity: 8, distance: 5, mode: 'steady' });
 
-  // Свет на площадках приземления — чтобы игрок сразу понимал, где он
-  c.lamp({ x: NICHE_UP_CENTER.x, z: NICHE_UP_CENTER.z, y: H - 0.5, color: 0xdfe8d0, intensity: 9, distance: 7, mode: 'steady' });
-  c.lamp({ x: NICHE_DOWN_CENTER.x, z: NICHE_DOWN_CENTER.z, y: H - 0.5, color: 0xdfe8d0, intensity: 9, distance: 7, mode: 'steady' });
+  // Красная аварийная лампа у входа в нишу — ориентир в темноте
+  c.lamp({ x: 45.5, z: STAIR_NICHE_NORTH.z + 3.7, y: 2.4, kind: 'em', color: 0xff2a1a, intensity: 5, distance: 6, mode: 'pulse' });
+  c.lamp({ x: 45.5, z: STAIR_NICHE_SOUTH.z + 3.7, y: 2.4, kind: 'em', color: 0xff2a1a, intensity: 5, distance: 6, mode: 'pulse' });
 
-  // Осмотр обеих лестниц
-  c.proxy(1.9, 2.2, 4.0, 46, 1.1, 14.0, 'Осмотреть лестницу', 'Ступени покрыты пылью. Вверх ведут следы, оставленные недавно.');
-  c.proxy(1.9, 2.2, 4.0, 46, 1.1, 23.0, 'Осмотреть лестницу', 'Снизу тянет холодом и запахом сырости. Где-то далеко капает вода.');
+  // Свет на площадках приземления — игрок сразу понимает, где он
+  for (const niche of [STAIR_NICHE_NORTH, STAIR_NICHE_SOUTH]) {
+    const p = stairLanding(niche);
+    c.lamp({ x: p.x, z: p.z, y: c.H - 0.5, color: 0xdfe8d0, intensity: 9, distance: 7, mode: 'steady' });
+  }
+
+  // Осмотр лестниц: зона у проёма, видна из прохода
+  c.proxy(0.6, 0.9, 1.2, 46.4, 2.2, NICHE_NORTH_CENTER.z - 1, 'Осмотреть лестницу', 'Ступени покрыты пылью. Вверх ведут следы, оставленные недавно.');
+  c.proxy(0.6, 0.9, 1.2, 46.4, 2.2, NICHE_SOUTH_CENTER.z - 1, 'Осмотреть лестницу', 'Снизу тянет холодом и запахом сырости. Где-то далеко капает вода.');
 }
