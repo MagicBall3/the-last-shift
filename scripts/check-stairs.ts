@@ -22,7 +22,6 @@ import {
   stairTopZ,
   stairZone,
   STAIR_NICHE_NORTH,
-  STAIR_NICHE_SOUTH,
   STAIR_OPENINGS,
   STAIR_RISE,
   STAIR_STEPS,
@@ -33,10 +32,7 @@ import {
 
 const errors: string[] = [];
 const err = (m: string) => errors.push(m);
-const NICHE_NAMES: [string, StairRect][] = [
-  ['северная', STAIR_NICHE_NORTH],
-  ['южная', STAIR_NICHE_SOUTH],
-];
+const NICHE_NAMES: [string, StairRect][] = [['северная', STAIR_NICHE_NORTH]];
 
 const base = defaultGridData();
 const ext = exteriorGridData();

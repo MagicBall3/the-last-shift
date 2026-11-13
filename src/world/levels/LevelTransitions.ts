@@ -7,7 +7,6 @@ import {
   insideRect,
   STAIR_DURATION,
   STAIR_NICHE_NORTH,
-  STAIR_NICHE_SOUTH,
   stairLanding,
   stairTarget,
   stairZone,
@@ -33,12 +32,11 @@ interface ActiveTransition {
 }
 
 /**
- * Вертикальные переходы по лестничным нишам.
+ * Вертикальные переходы по единственной лестничной нише.
  *
- * Лестница одна и та же в обеих нишах: марш поднимается к северу, вдоль западной
- * стены — проход. Подход к южному концу (низ марша) ведёт вверх, к северному
- * (верх у проёма) — вниз. Поэтому направление определяется не нишей, а зоной,
- * в которую вошёл игрок.
+ * Марш поднимается к северу, вдоль западной стены — проход. Подход к южному концу
+ * (низ марша) ведёт вверх, к северному (верх у проёма) — вниз. Поэтому направление
+ * определяется не нишей, а зоной, в которую вошёл игрок.
  *
  * Переход срабатывает только при входе в зону; флаг «взведено» снимается до тех
  * пор, пока игрок не выйдет из обеих ниш, — повторного срабатывания при одном
@@ -119,7 +117,6 @@ export class LevelTransitions implements GameModule {
 
   private nicheAt(x: number, z: number): StairRect | null {
     if (insideRect(STAIR_NICHE_NORTH, x, z)) return STAIR_NICHE_NORTH;
-    if (insideRect(STAIR_NICHE_SOUTH, x, z)) return STAIR_NICHE_SOUTH;
     return null;
   }
 

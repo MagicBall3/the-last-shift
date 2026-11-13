@@ -36,7 +36,6 @@ import { Player } from '../src/player/Player';
 import { LevelTransitions } from '../src/world/levels/LevelTransitions';
 import {
   STAIR_NICHE_NORTH,
-  STAIR_NICHE_SOUTH,
   STAIR_OPENINGS,
   stairFlightFootprint,
   stairLanding,
@@ -64,10 +63,7 @@ const transitions = new LevelTransitions(levels, player, {
 
 const DT = 1 / 60;
 const RADIUS = CONFIG.player.radius;
-const NICHES: [string, StairRect][] = [
-  ['северная', STAIR_NICHE_NORTH],
-  ['южная', STAIR_NICHE_SOUTH],
-];
+const NICHES: [string, StairRect][] = [['северная', STAIR_NICHE_NORTH]];
 
 function levelOf(y: number): number {
   return levels.findIndex((l) => Math.abs(l.baseY - y) < 0.01);
@@ -198,6 +194,43 @@ function expectRearm(index: number, niche: StairRect, context: string): void {
   else expectAt(expected, niche, `${context} (повторно)`);
 }
 
+/**
+ * В проходе вдоль западной стены нет невидимых барьеров. Проверяется ре为题
+ * достижимая полоса: у стен игрок стоять не может из-за радиуса, поэтому
+ * берём диапазон, который действительно проходим по сетке и коллизиям.
+ *
+ * Раньше коллизия марша выступала на 0,3 м в проход (x от 45,75 вместо 46,0),
+ * и игрок упирался в невидимую стену, не доходя до ступеней.
+ */
+function expectClearPassage(levelIndex: number, niche: StairRect): void {
+  const f = stairFlightFootprint(niche);
+  const fx0 = f.x - f.w / 2;
+  const context = `уровень ${levelIndex}, проход ниши`;
+  const minX = niche.x + RADIUS + 0.02;
+  const maxX = fx0 - RADIUS - 0.02;
+  if (maxX <= minX) {
+    err(`${context}: проход не вмещает игрока (${minX.toFixed(2)}..${maxX.toFixed(2)})`);
+    return;
+  }
+  // Границы ниши по z: у северной и южной стен игрок тоже не стоит вплотную.
+  const minZ = niche.z + RADIUS + 0.02;
+  const maxZ = niche.z + niche.d - RADIUS - 0.02;
+
+  let checked = 0;
+  for (let z = minZ; z <= maxZ + 1e-9; z += 0.1) {
+    for (let x = minX; x <= maxX + 1e-9; x += 0.05) {
+      // Только те точки, что свободны по сетке: у проёма пола нет intentionally.
+      if (!levels[levelIndex].grid.isFloor(Math.floor(x), Math.floor(z))) continue;
+      checked += 1;
+      if (world.collision.isBlocked(x, z, RADIUS)) {
+        err(`${context}: невидимый барьер в (${x.toFixed(2)}, ${z.toFixed(2)})`);
+        return;
+      }
+    }
+  }
+  if (checked < 20) err(`${context}: слишком мало проверенных точек (${checked})`);
+}
+
 /** Один сценарий: подход к нужному концу марша и переход. */
 function testOne(index: number, nicheName: string, niche: StairRect, dir: 1 | -1): void {
   const context = `уровень ${index}, ${nicheName} ниша, ${dir === 1 ? 'вверх' : 'вниз'}`;
@@ -280,7 +313,7 @@ function expectSolid(levelIndex: number, nicheName: string, niche: StairRect): v
   }
 }
 
-// ── 1. Оба направления в обеих нишах (на наземном уровне) ──────────────────
+// ── 1. Оба направления на единственной лестнице (наземный уровень) ─────────
 for (const [name, niche] of NICHES) {
   for (const dir of [1, -1] as const) {
     testOne(0, name, niche, dir);
@@ -293,17 +326,17 @@ testOne(0, 'северная', STAIR_NICHE_NORTH, 1);
 expectRearm(1, STAIR_NICHE_NORTH, 'повторный взвод');
 standOutside(0, STAIR_NICHE_NORTH, STAIR_NICHE_NORTH.z + 2);
 
-// ── 3. Маршрут по всему комплексу: вверх северной, вниз южной ──────────────
+// ── 3. Маршрут по всему комплексу: вверх до этажа 4 и обратно до −3 ────────
 const route: { from: number; dir: 1 | -1; nicheName: string; niche: StairRect }[] = [
   { from: 0, dir: 1, nicheName: 'северная', niche: STAIR_NICHE_NORTH },
   { from: 1, dir: 1, nicheName: 'северная', niche: STAIR_NICHE_NORTH },
   { from: 2, dir: 1, nicheName: 'северная', niche: STAIR_NICHE_NORTH },
-  { from: 3, dir: -1, nicheName: 'южная', niche: STAIR_NICHE_SOUTH },
-  { from: 2, dir: -1, nicheName: 'южная', niche: STAIR_NICHE_SOUTH },
-  { from: 1, dir: -1, nicheName: 'южная', niche: STAIR_NICHE_SOUTH },
-  { from: 0, dir: -1, nicheName: 'южная', niche: STAIR_NICHE_SOUTH },
-  { from: 4, dir: -1, nicheName: 'южная', niche: STAIR_NICHE_SOUTH },
-  { from: 5, dir: -1, nicheName: 'южная', niche: STAIR_NICHE_SOUTH },
+  { from: 3, dir: -1, nicheName: 'северная', niche: STAIR_NICHE_NORTH },
+  { from: 2, dir: -1, nicheName: 'северная', niche: STAIR_NICHE_NORTH },
+  { from: 1, dir: -1, nicheName: 'северная', niche: STAIR_NICHE_NORTH },
+  { from: 0, dir: -1, nicheName: 'северная', niche: STAIR_NICHE_NORTH },
+  { from: 4, dir: -1, nicheName: 'северная', niche: STAIR_NICHE_NORTH },
+  { from: 5, dir: -1, nicheName: 'северная', niche: STAIR_NICHE_NORTH },
   { from: 6, dir: 1, nicheName: 'северная', niche: STAIR_NICHE_NORTH },
   { from: 5, dir: 1, nicheName: 'северная', niche: STAIR_NICHE_NORTH },
   { from: 4, dir: 1, nicheName: 'северная', niche: STAIR_NICHE_NORTH },
@@ -323,6 +356,11 @@ const routeEnd = levelOf(player.position.y);
 // ── 4. Марш и проём непроходимы на каждом уровне ───────────────────────────
 for (let index = 0; index < levels.length; index += 1) {
   for (const [name, niche] of NICHES) expectSolid(index, name, niche);
+}
+
+// ── 4b. В проходе нет невидимых барьеров ──────────────────────────────────
+for (let index = 0; index < levels.length; index += 1) {
+  expectClearPassage(index, STAIR_NICHE_NORTH);
 }
 
 // ── 5. Затемнение: камера проходит сквозь перекрытие ───────────────────────

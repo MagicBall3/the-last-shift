@@ -1,12 +1,12 @@
 import type { DoorDef, ZoneId } from '../layout';
 import type { GridData, ZoneDef } from '../grid';
-import { STAIR_NICHE_NORTH, STAIR_NICHE_SOUTH } from './stairs';
+import { STAIR_NICHE_NORTH } from './stairs';
 
 /**
  * Верхние этажи главного корпуса (этажи 2–4) — та же сетка и тот же контур
  * циркуляции, что у наземного этажа: главный коридор z 18–20, служебный
- * коридор x 43–44, лестничные ниши x 45–46. Комнаты — севернее (z 8–16)
- * и южнее (z 22–30) коридора.
+ * коридор x 43–44, лестничная ниша x 45–46. Комнаты — севернее (z 8–16)
+ * и южнее (z 22–30) коридора. Южная ниша заделана бетоном на всех этажах.
  */
 export const FLOOR_W = 48;
 export const FLOOR_D = 46;
@@ -25,8 +25,8 @@ function floorSkeleton(): ZoneDef[] {
       rects: [
         { x: 43, z: 13, w: 2, d: 5 },
         { x: 43, z: 21, w: 2, d: 8 },
+        // Единственная лестничная ниша; южная заделана наглухо.
         STAIR_NICHE_NORTH,
-        STAIR_NICHE_SOUTH,
       ],
     },
   ];

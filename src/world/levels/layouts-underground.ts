@@ -1,11 +1,12 @@
 import type { DoorDef, ZoneId } from '../layout';
 import type { GridData, ZoneDef } from '../grid';
-import { STAIR_NICHE_NORTH, STAIR_NICHE_SOUTH } from './stairs';
+import { STAIR_NICHE_NORTH } from './stairs';
 
 /**
  * Подземные уровни NADIR (ниже главного здания). Своя, более широкая планировка:
  * главный коридор x 6–39, z 20–23; служебный коридор x 41–44 (z 10–29);
- * лестничные ниши x 45–46 — те же координаты, что на наземных этажах.
+ * лестничная ниша x 45–46 — те же координаты, что на наземных этажах.
+ * Южная ниша заделана бетоном: лестница одна на весь комплекс.
  */
 export const UNDER_W = 48;
 export const UNDER_D = 46;
@@ -23,8 +24,8 @@ function underFloor(spec: UnderSpec): GridData {
       id: 'service',
       rects: [
         { x: 41, z: 10, w: 4, d: 20 },
+        // Единственная лестничная ниша; южная заделана наглухо.
         STAIR_NICHE_NORTH,
-        STAIR_NICHE_SOUTH,
       ],
     },
     ...spec.north,
