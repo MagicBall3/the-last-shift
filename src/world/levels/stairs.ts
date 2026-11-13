@@ -75,10 +75,12 @@ export function stairFlightX(n: StairRect): number {
  * прямо в проходе, а с востока коллизия уходила в бетон стены.
  */
 export function stairFlightFootprint(n: StairRect): { x: number; z: number; w: number; d: number } {
-  // По Z коробка начинается у северного края ниши: она обязана полностью накрывать
-  // клетки проёма (иначе игрок встанет над дырой) и не оставлять «карман»
-  // за верхней ступенью. Нижняя кромка — передняя грань нижней ступени.
-  const z0 = n.z;
+  // Коробка совпадает с габаритом видимых ступеней и полностью накрывает клетки
+  // проёма в перекрытии (иначе игрок встанет над дырой). Начинается с первой
+  // клетки проёма (z = n.z + Math.floor(STAIR_TOP_Z)), а не с северного края
+  // ниши — иначе между краем ниши и первой клеткой проёма остаётся невидимая
+  // коллизия без геометрии.
+  const z0 = n.z + Math.floor(STAIR_TOP_Z);
   const z1 = stairBottomZ(n) + STAIR_TREAD / 2;
   return {
     x: stairFlightX(n),
@@ -127,7 +129,7 @@ export function insideRect(r: StairRect, x: number, z: number): boolean {
 export function stairZone(n: StairRect, dir: 1 | -1): StairRect {
   return {
     x: n.x,
-    z: dir === 1 ? n.z : n.z + n.d - STAIR_ZONE_DEPTH,
+    z: dir === 1 ? n.z + n.d - STAIR_ZONE_DEPTH : n.z,
     w: n.w / 2, // только проход: марш не задеваем
     d: STAIR_ZONE_DEPTH,
   };
