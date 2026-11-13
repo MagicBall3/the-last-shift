@@ -244,30 +244,21 @@ function testOne(index: number, nicheName: string, niche: StairRect, dir: 1 | -1
   const zTarget = zone.z + zone.d / 2;
   const midZ = niche.z + niche.d / 2;
 
-  if (!standOutside(index, niche, dir === 1 ? zTarget : midZ)) return;
+  if (!standOutside(index, niche, midZ)) return;
 
-  if (dir === 1) {
-    const res = walkTo(niche.x + 0.5, zTarget);
-    if (!res.started || !player.transitioning) {
-      err(`${context}: переход не начался при входе в зону «вверх»`);
-      return;
-    }
-  } else {
-    // Сначала входим в нейтральную середину — здесь перехода быть не должно.
-    const toMid = walkTo(niche.x + 0.5, midZ);
-    if (player.transitioning) {
-      err(`${context}: переход сработал в нейтральной середине ниши`);
-      return;
-    }
-    if (!toMid.reached) {
-      err(`${context}: не удалось войти в нейтральную середину ниши`);
-      return;
-    }
-    const res = walkTo(niche.x + 0.5, zTarget);
-    if (!res.started || !player.transitioning) {
-      err(`${context}: переход не начался при входе в зону «вниз»`);
-      return;
-    }
+  const toMid = walkTo(niche.x + 0.5, midZ);
+  if (player.transitioning) {
+    err(`${context}: переход сработал в нейтральной середине ниши`);
+    return;
+  }
+  if (!toMid.reached) {
+    err(`${context}: не удалось войти в нейтральную середину ниши`);
+    return;
+  }
+  const res = walkTo(niche.x + 0.5, zTarget);
+  if (!res.started || !player.transitioning) {
+    err(`${context}: переход не начался при входе в зону «${dir === 1 ? 'вверх' : 'вниз'}»`);
+    return;
   }
 
   if (!finish()) {

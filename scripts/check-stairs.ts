@@ -146,9 +146,14 @@ for (const [name, r] of NICHE_NAMES) {
     if (zone.z < r.z || zone.z + zone.d > r.z + r.d) err(`Зона «${label}» «${name}» выходит за нишу по z`);
     if (zone.x + zone.w > fx0) err(`Зона «${label}» «${name}» заходит на марш`);
   }
-  if (up.z < down.z + down.d) err(`Зоны «${name}» перекрываются`);
+  // Зоны не должны перекрываться, независимо от того, какая выше.
+  if (up.z < down.z + down.d && down.z < up.z + up.d) {
+    err(`Зоны «${name}» перекрываются`);
+  }
   const c = stairLanding(r);
-  const between = c.z > down.z + down.d && c.z < up.z;
+  const topZone = up.z > down.z ? up : down;
+  const bottomZone = up.z > down.z ? down : up;
+  const between = c.z > bottomZone.z + bottomZone.d && c.z < topZone.z;
   if (!between) err(`Приземление «${name}» не между зонами (z=${c.z})`);
   if (STAIR_ZONE_DEPTH * 2 >= r.d) err(`Зоны «${name}» не оставляют нейтральной середины`);
 

@@ -23,7 +23,7 @@ function floorSkeleton(): ZoneDef[] {
     {
       id: 'service',
       rects: [
-        { x: 43, z: 13, w: 2, d: 5 },
+        { x: 43, z: 12, w: 2, d: 6 },
         { x: 43, z: 21, w: 2, d: 8 },
         // Единственная лестничная ниша; южная заделана наглухо.
         STAIR_NICHE_NORTH,

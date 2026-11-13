@@ -25,8 +25,6 @@ const SCRIPTS = [
   'check-stairs',
   'sim-stairs',
   'smoke-world',
-  'probe-stair-access',
-  'probe-all-stairs',
 ];
 
 /**

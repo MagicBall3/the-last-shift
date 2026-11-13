@@ -123,11 +123,11 @@ export function insideRect(r: StairRect, x: number, z: number): boolean {
   return x >= r.x && x <= r.x + r.w && z >= r.z && z <= r.z + r.d;
 }
 
-/** Зона активации у конца марша: dir = +1 — южный (низ, вверх), −1 — северный (верх, вниз). */
+/** Зона активации у конца марша: dir = +1 — южный (подножие, вверх), −1 — северный (проём, вниз). */
 export function stairZone(n: StairRect, dir: 1 | -1): StairRect {
   return {
     x: n.x,
-    z: dir === 1 ? n.z + n.d - STAIR_ZONE_DEPTH : n.z,
+    z: dir === 1 ? n.z : n.z + n.d - STAIR_ZONE_DEPTH,
     w: n.w / 2, // только проход: марш не задеваем
     d: STAIR_ZONE_DEPTH,
   };
