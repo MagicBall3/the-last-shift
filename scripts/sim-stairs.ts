@@ -154,7 +154,10 @@ function expectNoRepeat(niche: StairRect, levelIndex: number, context: string): 
   }
 
   const x = niche.x + niche.w / 4;
-  const zs = [niche.z + 0.8, niche.z + niche.d - 0.8, niche.z + niche.d / 2];
+  const up = stairZone(niche, 1);
+  const down = stairZone(niche, -1);
+  const midZ = (down.z + down.d + up.z) / 2;
+  const zs = [niche.z + 0.5, midZ, up.z - 0.3];
   for (const z of zs) {
     const res = walkTo(x, z);
     if (player.transitioning) {
@@ -171,7 +174,9 @@ function expectNoRepeat(niche: StairRect, levelIndex: number, context: string): 
 
 /** Выход из ниши и повторный вход: флаг «взведено» обязан сброситься. */
 function expectRearm(index: number, niche: StairRect, context: string): void {
-  const midZ = niche.z + niche.d / 2;
+  const up = stairZone(niche, 1);
+  const down = stairZone(niche, -1);
+  const midZ = (down.z + down.d + up.z) / 2;
   const out = walkTo(niche.x - 0.6, midZ);
   if (player.transitioning || !out.reached) {
     err(`${context}: не удалось выйти из ниши для повторного взвода`);
@@ -242,7 +247,9 @@ function testOne(index: number, nicheName: string, niche: StairRect, dir: 1 | -1
 
   const zone = stairZone(niche, dir);
   const zTarget = zone.z + zone.d / 2;
-  const midZ = niche.z + niche.d / 2;
+  const up = stairZone(niche, 1);
+  const down = stairZone(niche, -1);
+  const midZ = (down.z + down.d + up.z) / 2;
 
   if (!standOutside(index, niche, midZ)) return;
 
@@ -308,14 +315,14 @@ function expectSolid(levelIndex: number, nicheName: string, niche: StairRect): v
 for (const [name, niche] of NICHES) {
   for (const dir of [1, -1] as const) {
     testOne(0, name, niche, dir);
-    standOutside(0, STAIR_NICHE_NORTH, STAIR_NICHE_NORTH.z + STAIR_NICHE_NORTH.d / 2);
+    standOutside(0, STAIR_NICHE_NORTH, stairLanding(STAIR_NICHE_NORTH).z);
   }
 }
 
 // ── 2. Повторный вход после выхода должен снова взводить переход ───────────
 testOne(0, 'северная', STAIR_NICHE_NORTH, 1);
 expectRearm(1, STAIR_NICHE_NORTH, 'повторный взвод');
-standOutside(0, STAIR_NICHE_NORTH, STAIR_NICHE_NORTH.z + 2);
+standOutside(0, STAIR_NICHE_NORTH, stairLanding(STAIR_NICHE_NORTH).z);
 
 // ── 3. Маршрут по всему комплексу: вверх до этажа 4 и обратно до −3 ────────
 const route: { from: number; dir: 1 | -1; nicheName: string; niche: StairRect }[] = [

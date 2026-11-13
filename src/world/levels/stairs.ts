@@ -127,17 +127,24 @@ export function insideRect(r: StairRect, x: number, z: number): boolean {
 
 /** Зона активации у конца марша: dir = +1 — южный (подножие, вверх), −1 — северный (проём, вниз). */
 export function stairZone(n: StairRect, dir: 1 | -1): StairRect {
+  // DOWN начинается у проёма в перекрытии (рядом с первыми ступенями),
+  // а не у северного края ниши — иначе игрок спускается, не дойдя до марша.
+  // UP остаётся у южного конца (подножие марша).
+  const depth = 0.8;
   return {
     x: n.x,
-    z: dir === 1 ? n.z + n.d - STAIR_ZONE_DEPTH : n.z,
+    z: dir === 1 ? n.z + n.d - depth : n.z + STAIR_TOP_Z - 0.1,
     w: n.w / 2, // только проход: марш не задеваем
-    d: STAIR_ZONE_DEPTH,
+    d: depth,
   };
 }
 
-/** Точка приземления: середина прохода, между зонами активации. */
+/** Точка приземления: середина нейтральной зоны между зонами активации. */
 export function stairLanding(n: StairRect): { x: number; z: number } {
-  return { x: n.x + n.w * 0.25, z: n.z + n.d / 2 };
+  const up = stairZone(n, 1);
+  const down = stairZone(n, -1);
+  const z = (down.z + down.d + up.z) / 2;
+  return { x: n.x + n.w * 0.25, z };
 }
 
 /**
