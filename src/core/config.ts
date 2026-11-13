@@ -38,6 +38,8 @@ export const CONFIG = {
     walkSpeed: 2.4,
     runSpeed: 4.0,
     acceleration: 10,
+    /** Гравитация, м/с²: тянет игрока к полу этажа. */
+    gravity: 15,
     lookRadPerPixel: 0.0022,
     touchLookScale: 1.6,
     maxPitch: 1.5,

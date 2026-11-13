@@ -88,12 +88,12 @@ export function buildStairShaft(c: BuildContext): void {
   flight(c, niche);
 
   // Рамка проёма в перекрытии: тонкий металл по краю, чтобы дыра читалась
-  // как выход шахты, а не как дыра в текстуре
+  // как выход шахты, а не как дыра в текстуре.
+  // Северную балку убрали — чтобы не было «стены» наверх от лестницы:
+  // игрок свободно выходит в проём при подъёме.
   const hole = STAIR_OPENINGS.find((o) => o.z >= niche.z && o.z < niche.z + niche.d);
   if (hole) {
-    for (const z of [hole.z - 0.03, hole.z + hole.d + 0.03]) {
-      c.detail('metal', hole.w, 0.06, 0.06, hole.x + hole.w / 2, c.H - 0.03, z, { tile: 1 });
-    }
+    c.detail('metal', hole.w, 0.06, 0.06, hole.x + hole.w / 2, c.H - 0.03, hole.z + hole.d + 0.03, { tile: 1 });
     c.detail('metal', 0.06, 0.06, hole.d, hole.x + 0.03, c.H - 0.03, hole.z + hole.d / 2);
   }
 

@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
 import type { CollisionQuery } from '../core/types';
+import { CONFIG } from '../core/config';
 import type { Grid } from './grid';
 
 /**
@@ -29,5 +30,10 @@ export class LevelCollision implements CollisionQuery {
       if (x > b.min.x - r && x < b.max.x + r && z > b.min.z - r && z < b.max.z + r) return true;
     }
     return false;
+  }
+
+  /** Границы этажа по высоте (в локальных координатах уровня: пол 0, потолок H). */
+  getBounds(_y: number): { floor: number; ceiling: number } {
+    return { floor: 0, ceiling: CONFIG.world.height };
   }
 }

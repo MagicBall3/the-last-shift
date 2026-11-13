@@ -1,6 +1,7 @@
 import type { CollisionQuery } from '../../core/types';
 import type { Level } from './Level';
 import { levelIndexAt } from './levelIndex';
+import { CONFIG } from '../../core/config';
 
 /**
  * Коллизии всего комплекса: выбирает уровень по высоте игрока и делегирует его сетке.
@@ -22,5 +23,11 @@ export class MultiLevelCollision implements CollisionQuery {
 
   isBlocked(x: number, z: number, r: number): boolean {
     return this.levelAt(this.getY()).collision.isBlocked(x, z, r);
+  }
+
+  /** Границы этажа по высоте с учётом baseY активного уровня. */
+  getBounds(y: number): { floor: number; ceiling: number } {
+    const level = this.levelAt(y);
+    return { floor: level.baseY, ceiling: level.baseY + CONFIG.world.height };
   }
 }

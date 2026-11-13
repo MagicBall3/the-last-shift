@@ -15,11 +15,14 @@ export class Player {
 
   private vx = 0;
   private vz = 0;
+  private vy = 0;
+  private grounded = false;
 
   /** Погасить инерцию: вызывается при входе на лестницу и после приземления. */
   stopMotion(): void {
     this.vx = 0;
     this.vz = 0;
+    this.vy = 0;
     this.speed = 0;
   }
 
@@ -69,6 +72,24 @@ export class Player {
     const nz = this.position.z + this.vz * dt;
     if (this.isBlocked(this.position.x, nz)) this.vz = 0;
     else this.position.z = nz;
+
+    // Вертикальная физика: гравитация, пол, потолок
+    this.vy -= cfg.gravity * dt;
+    let ny = this.position.y + this.vy * dt;
+
+    const bounds = this.collision.getBounds(this.position.y);
+    if (ny < bounds.floor) {
+      ny = bounds.floor;
+      this.vy = 0;
+      this.grounded = true;
+    } else {
+      this.grounded = false;
+    }
+    if (ny > bounds.ceiling) {
+      ny = bounds.ceiling;
+      this.vy = 0;
+    }
+    this.position.y = ny;
 
     this.speed = Math.hypot(this.vx, this.vz);
   }

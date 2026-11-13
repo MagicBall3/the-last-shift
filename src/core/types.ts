@@ -23,6 +23,8 @@ export interface GameEvents {
 /** Запрос столкновений: круг игрока (x, z, радиус) пересекает стену или предмет? */
 export interface CollisionQuery {
   isBlocked(x: number, z: number, radius: number): boolean;
+  /** Границы этажа по высоте: пол и потолок для заданной Y. */
+  getBounds(y: number): { floor: number; ceiling: number };
 }
 
 /** Всё, что обновляется каждый кадр. Порядок регистрации в Engine = порядок обновления. */
